@@ -49,7 +49,7 @@ class TestRoles:
 
     def test_actualizar_descripcion_rol(self, client, auth_headers):
         """PUT /roles/{id} debe actualizar el rol."""
-        resp = client.put("/api/v1/roles/rol-vend-001", json={
+        resp = client.put("/api/v1/roles/rol-vende-001", json={
             "descripcion": "Vendedor actualizado"
         }, headers=auth_headers)
         assert resp.status_code == 200
@@ -59,7 +59,7 @@ class TestRoles:
         """POST /roles/asignar debe crear la relación Usuario-Rol."""
         resp = client.post("/api/v1/roles/asignar", json={
             "id_usuario": "usuario-test-001",
-            "id_rol": "rol-soci-001",
+            "id_rol": "rol-socio-001",
         }, headers=auth_headers)
         # 201 si es nueva asignación, 400 si ya existe
         assert resp.status_code in [201, 400]
