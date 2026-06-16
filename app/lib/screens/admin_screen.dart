@@ -118,17 +118,20 @@ class _RoleScreen extends StatelessWidget {
               style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: roleColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: roleColor.withOpacity(0.4)),
-              ),
-              child: Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 12, color: roleColor, fontWeight: FontWeight.w600),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: roleColor.withOpacity(0.4)),
+                ),
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12, color: roleColor, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
@@ -172,19 +175,25 @@ class _RoleScreen extends StatelessWidget {
                   child: Icon(icon, color: roleColor, size: 32),
                 ),
                 const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: GoogleFonts.inter(
-                        fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
-                    ),
-                    Text(
-                      description,
-                      style: GoogleFonts.inter(fontSize: 13, color: Colors.white54),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greeting,
+                        style: GoogleFonts.inter(
+                          fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        description,
+                        style: GoogleFonts.inter(fontSize: 13, color: Colors.white54),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -198,7 +207,7 @@ class _RoleScreen extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.1,
+                childAspectRatio: 1.05,
               ),
               itemCount: menuItems.length,
               itemBuilder: (_, i) => _MenuCard(
@@ -227,14 +236,20 @@ class _MenuCard extends StatelessWidget {
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${item.title} – Próximamente'),
+              content: Text(
+                '${item.title} – Próximamente',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               backgroundColor: const Color(0xFF03045E),
               duration: const Duration(seconds: 1),
             ),
           );
         },
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(20),
@@ -245,24 +260,25 @@ class _MenuCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(item.icon, color: color, size: 24),
+                child: Icon(item.icon, color: color, size: 22),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 item.title,
                 style: GoogleFonts.inter(
                   fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
                 maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 item.subtitle,
-                style: GoogleFonts.inter(fontSize: 11, color: Colors.white38),
+                style: GoogleFonts.inter(fontSize: 10, color: Colors.white38),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
