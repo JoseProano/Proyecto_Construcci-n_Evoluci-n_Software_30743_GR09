@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AmazonFish – Sistema de Gestión Acuícola | GR09</title>
+  <meta name="description" content="AmazonFish: Sistema de Gestión Acuícola para control de inventario, ventas, pedidos y proveedores. GR09 – Construcción y Evolución de Software, ESPE." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    :root {
+      --deep:    #020024;
+      --navy:    #03045e;
+      --cobalt:  #0077b6;
+      --sky:     #0096c7;
+      --cyan:    #00b4d8;
+      --light:   #90e0ef;
+      --white:   #ffffff;
+      --glass:   rgba(255,255,255,0.07);
+      --border:  rgba(255,255,255,0.15);
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+
+    body {
+      font-family:'Inter',sans-serif;
+      background: var(--deep);
+      color: var(--white);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    /* ── Animated ocean background ────────────────── */
+    .ocean {
+      position:fixed; inset:0; z-index:-1;
+      background: linear-gradient(160deg, var(--deep) 0%, var(--navy) 40%, #023e8a 70%, #0077b6 100%);
+    }
+    .bubble {
+      position:absolute; border-radius:50%;
+      background:rgba(0,180,216,0.08);
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform:translateY(100vh) scale(0); opacity:0; }
+      10%  { opacity:1; }
+      90%  { opacity:0.3; }
+      100% { transform:translateY(-10vh) scale(1.2); opacity:0; }
+    }
+
+    /* ── Layout ────────────────────────────────────── */
+    .container { max-width:1100px; margin:0 auto; padding:0 24px; }
+
+    /* ── Nav ───────────────────────────────────────── */
+    nav {
+      position:fixed; top:0; width:100%; z-index:100;
+      background:rgba(2,0,36,0.85); backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
+      padding:14px 0;
+    }
+    .nav-inner {
+      max-width:1100px; margin:0 auto; padding:0 24px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .logo { display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.2rem; color:var(--cyan); }
+    .logo i { font-size:1.6rem; }
+    .nav-links { display:flex; gap:24px; }
+    .nav-links a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:.9rem; transition:.2s; }
+    .nav-links a:hover { color:var(--cyan); }
+
+    /* ── Hero ──────────────────────────────────────── */
+    .hero {
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+      text-align:center; padding:120px 24px 80px;
+    }
+    .hero-badge {
+      display:inline-flex; align-items:center; gap:8px;
+      background:rgba(0,180,216,0.15); border:1px solid rgba(0,180,216,0.35);
+      border-radius:50px; padding:6px 18px; font-size:.8rem;
+      color:var(--cyan); margin-bottom:28px; letter-spacing:.05em;
+    }
+    .hero h1 {
+      font-size:clamp(3rem,8vw,6rem); font-weight:800;
+      line-height:1.05;
+      background:linear-gradient(135deg,var(--white) 30%,var(--cyan) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+    .hero-subtitle {
+      font-size:1.2rem; color:rgba(255,255,255,0.7);
+      margin:20px 0 48px; max-width:600px; margin-inline:auto;
+      line-height:1.7;
+    }
+    .btn-group { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+
+    .btn {
+      display:inline-flex; align-items:center; gap:10px;
+      padding:16px 36px; border-radius:50px; font-size:1rem;
+      font-weight:600; text-decoration:none; border:none; cursor:pointer;
+      transition:.25s; letter-spacing:.02em;
+    }
+    .btn-primary {
+      background:linear-gradient(135deg,var(--sky),var(--cyan));
+      color:var(--deep);
+      box-shadow:0 8px 32px rgba(0,180,216,0.35);
+    }
+    .btn-primary:hover { transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,180,216,0.5); }
+    .btn-outline {
+      background:transparent; color:var(--white);
+      border:1.5px solid rgba(255,255,255,0.3);
+    }
+    .btn-outline:hover { border-color:var(--cyan); color:var(--cyan); transform:translateY(-3px); }
+
+    /* ── Build info ────────────────────────────────── */
+    .build-info {
+      margin-top:48px;
+      display:flex; justify-content:center; gap:24px; flex-wrap:wrap;
+    }
+    .build-chip {
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:8px; padding:8px 16px;
+      font-size:.8rem; color:rgba(255,255,255,0.6);
+    }
+    .build-chip span { color:var(--cyan); font-weight:600; }
+
+    /* ── Badges ────────────────────────────────────── */
+    .badges-section { padding:32px 0; text-align:center; }
+    .badges-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+    .badge-link { display:inline-block; transition:.2s; }
+    .badge-link:hover { transform:translateY(-2px); }
+    .badge-link img { height:24px; border-radius:4px; }
+
+    /* ── Section ───────────────────────────────────── */
+    section { padding:80px 0; }
+    .section-title {
+      text-align:center; margin-bottom:56px;
+    }
+    .section-title h2 {
+      font-size:2rem; font-weight:700;
+      background:linear-gradient(135deg,var(--white),var(--light));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+    .section-title p { color:rgba(255,255,255,0.55); margin-top:10px; }
+
+    /* ── Pipeline diagram ──────────────────────────── */
+    .pipeline {
+      display:flex; align-items:center; justify-content:center;
+      gap:0; flex-wrap:wrap; margin-bottom:24px;
+    }
+    .pipe-step {
+      display:flex; flex-direction:column; align-items:center;
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:16px; padding:20px 18px; min-width:110px;
+      transition:.2s;
+    }
+    .pipe-step:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.4); transform:translateY(-4px); }
+    .pipe-step i { font-size:1.8rem; color:var(--cyan); margin-bottom:8px; }
+    .pipe-step span { font-size:.75rem; text-align:center; color:rgba(255,255,255,0.8); font-weight:500; }
+    .pipe-arrow { color:rgba(0,180,216,0.5); font-size:1.2rem; margin:0 4px; }
+
+    /* ── Tech cards ────────────────────────────────── */
+    .tech-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:20px;
+    }
+    .tech-card {
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:20px; padding:28px;
+      transition:.25s;
+    }
+    .tech-card:hover { background:rgba(0,180,216,0.08); border-color:rgba(0,180,216,0.4); transform:translateY(-4px); }
+    .tech-card-icon { font-size:2.2rem; margin-bottom:14px; }
+    .tech-card h3 { font-size:1rem; font-weight:600; margin-bottom:8px; color:var(--light); }
+    .tech-card p { font-size:.85rem; color:rgba(255,255,255,0.55); line-height:1.6; }
+    .tech-tag {
+      display:inline-block; margin-top:12px; padding:3px 10px;
+      background:rgba(0,180,216,0.15); border:1px solid rgba(0,180,216,0.3);
+      border-radius:50px; font-size:.72rem; color:var(--cyan);
+    }
+
+    /* ── Links section ─────────────────────────────── */
+    .links-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:16px;
+    }
+    .link-card {
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:16px; padding:28px 20px; text-decoration:none;
+      color:var(--white); transition:.25s; text-align:center;
+    }
+    .link-card:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.45); transform:translateY(-4px); }
+    .link-card i { font-size:2rem; color:var(--cyan); }
+    .link-card h4 { font-weight:600; font-size:.95rem; }
+    .link-card p { font-size:.8rem; color:rgba(255,255,255,0.5); }
+
+    /* ── Team ──────────────────────────────────────── */
+    .team-grid { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; }
+    .team-card {
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:20px; padding:28px 36px; text-align:center;
+      min-width:200px;
+    }
+    .team-avatar { font-size:3rem; margin-bottom:12px; }
+    .team-card h4 { font-weight:600; }
+    .team-card p { font-size:.8rem; color:rgba(255,255,255,0.5); margin-top:4px; }
+
+    /* ── Footer ────────────────────────────────────── */
+    footer {
+      border-top:1px solid var(--border); padding:32px;
+      text-align:center; color:rgba(255,255,255,0.4); font-size:.85rem;
+    }
+    footer a { color:var(--cyan); text-decoration:none; }
+
+    @media(max-width:640px) {
+      .pipe-arrow { display:none; }
+      .pipeline { gap:10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Animated ocean bubbles -->
+<div class="ocean">
+  <div class="bubble" style="width:40px;height:40px;left:10%;animation-duration:12s;animation-delay:0s"></div>
+  <div class="bubble" style="width:20px;height:20px;left:25%;animation-duration:8s;animation-delay:2s"></div>
+  <div class="bubble" style="width:60px;height:60px;left:50%;animation-duration:15s;animation-delay:1s"></div>
+  <div class="bubble" style="width:15px;height:15px;left:70%;animation-duration:10s;animation-delay:3s"></div>
+  <div class="bubble" style="width:45px;height:45px;left:85%;animation-duration:13s;animation-delay:0.5s"></div>
+  <div class="bubble" style="width:30px;height:30px;left:40%;animation-duration:9s;animation-delay:4s"></div>
+</div>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><i class="fa-solid fa-fish"></i> AmazonFish</div>
+    <div class="nav-links">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#tech">Tecnología</a>
+      <a href="#links">Links</a>
+      <a href="#equipo">Equipo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div>
+    <div class="hero-badge">
+      <i class="fa-solid fa-circle-check" style="color:#00ff88"></i>
+      GR09 · NRC 30743 · ESPE
+    </div>
+    <h1>AmazonFish</h1>
+    <p class="hero-subtitle">
+      Sistema de Gestión Acuícola · Control de inventario, pedidos, ventas y proveedores
+      con arquitectura DevOps completa.
+    </p>
+    <div class="btn-group">
+      <a class="btn btn-primary" id="apk-btn" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/releases/download/v1.0.7/app-debug.apk" download>
+        <i class="fa-brands fa-android"></i> Descargar APK
+      </a>
+      <a class="btn btn-outline" href="https://amazonfish-backend.onrender.com/api/docs" target="_blank">
+        <i class="fa-solid fa-code"></i> API Docs
+      </a>
+    </div>
+    <div class="build-info">
+      <div class="build-chip">Build <span>#7</span></div>
+      <div class="build-chip">Commit <span>5ec3d5c</span></div>
+      <div class="build-chip">Fecha <span>2026-06-16 02:49 UTC</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Badges -->
+<div class="badges-section">
+  <div class="badges-row">
+    <a class="badge-link" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions" target="_blank">
+      <img src="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions/workflows/ci-cd.yml/badge.svg" alt="CI/CD Pipeline" />
+    </a>
+    <a class="badge-link" href="https://sonarcloud.io/project/overview?id=amazonfish-gr09" target="_blank">
+      <img src="https://sonarcloud.io/api/project_badges/measure?project=amazonfish-gr09&metric=alert_status" alt="Quality Gate" />
+    </a>
+    <a class="badge-link" href="https://sonarcloud.io/project/overview?id=amazonfish-gr09" target="_blank">
+      <img src="https://sonarcloud.io/api/project_badges/measure?project=amazonfish-gr09&metric=bugs" alt="Bugs" />
+    </a>
+    <a class="badge-link" href="https://sonarcloud.io/project/overview?id=amazonfish-gr09" target="_blank">
+      <img src="https://sonarcloud.io/api/project_badges/measure?project=amazonfish-gr09&metric=coverage" alt="Coverage" />
+    </a>
+  </div>
+</div>
+
+<!-- Pipeline Section -->
+<section id="pipeline">
+  <div class="container">
+    <div class="section-title">
+      <h2>🔄 Pipeline CI/CD</h2>
+      <p>Flujo automatizado completo desde el commit hasta producción</p>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <i class="fa-brands fa-git-alt"></i>
+        <span>Git Push</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-solid fa-flask"></i>
+        <span>pytest + coverage</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>SonarCloud</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-brands fa-android"></i>
+        <span>Build APK</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-solid fa-rocket"></i>
+        <span>Deploy Render</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-brands fa-github"></i>
+        <span>Release APK</span>
+      </div>
+      <i class="fa-solid fa-arrow-right pipe-arrow"></i>
+      <div class="pipe-step">
+        <i class="fa-brands fa-telegram"></i>
+        <span>Telegram</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section id="tech">
+  <div class="container">
+    <div class="section-title">
+      <h2>🛠️ Stack Tecnológico</h2>
+      <p>Herramientas de desarrollo, CI/CD y seguridad</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-card-icon">📱</div>
+        <h3>Frontend Móvil</h3>
+        <p>App Android desarrollada con Flutter. Login con JWT, navegación por rol (Administrador, Vendedor, Socio).</p>
+        <span class="tech-tag">Flutter 3.22</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-icon">⚡</div>
+        <h3>Backend API</h3>
+        <p>Microservicio REST con FastAPI. Módulos: Personas, Usuarios, Roles, Proveedores, Productos (Factory Method).</p>
+        <span class="tech-tag">FastAPI · Python 3.11</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-icon">🐘</div>
+        <h3>Base de Datos</h3>
+        <p>PostgreSQL gestionado en Supabase. UUID como clave primaria. Herencia de tablas. Índices optimizados.</p>
+        <span class="tech-tag">Supabase · PostgreSQL</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-icon">🔄</div>
+        <h3>CI/CD</h3>
+        <p>Pipeline automático en GitHub Actions. 7 etapas: tests, análisis, build, deploy, release y notificación.</p>
+        <span class="tech-tag">GitHub Actions</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-icon">🛡️</div>
+        <h3>DevSecOps</h3>
+        <p>Análisis estático de código con SonarCloud: bugs, vulnerabilidades, code smells y Quality Gate.</p>
+        <span class="tech-tag">SonarCloud · OWASP</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-icon">🔐</div>
+        <h3>Seguridad</h3>
+        <p>JWT para sesiones, bcrypt para contraseñas, variables de entorno para secretos, HTTPS en producción.</p>
+        <span class="tech-tag">JWT · bcrypt · HTTPS</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Links -->
+<section id="links">
+  <div class="container">
+    <div class="section-title">
+      <h2>🔗 Links del Proyecto</h2>
+      <p>Acceso a todos los recursos del sistema</p>
+    </div>
+    <div class="links-grid">
+      <a class="link-card" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/releases/download/v1.0.7/app-debug.apk" download>
+        <i class="fa-brands fa-android"></i>
+        <h4>Descargar APK</h4>
+        <p>Build #7</p>
+      </a>
+      <a class="link-card" href="https://amazonfish-backend.onrender.com/api/docs" target="_blank">
+        <i class="fa-solid fa-code"></i>
+        <h4>Backend API Docs</h4>
+        <p>Swagger UI en Render</p>
+      </a>
+      <a class="link-card" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09" target="_blank">
+        <i class="fa-brands fa-github"></i>
+        <h4>Repositorio GitHub</h4>
+        <p>Código fuente completo</p>
+      </a>
+      <a class="link-card" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions" target="_blank">
+        <i class="fa-solid fa-gears"></i>
+        <h4>GitHub Actions</h4>
+        <p>Historial del pipeline</p>
+      </a>
+      <a class="link-card" href="https://sonarcloud.io/project/overview?id=amazonfish-gr09" target="_blank">
+        <i class="fa-solid fa-magnifying-glass-chart"></i>
+        <h4>SonarCloud</h4>
+        <p>Análisis de calidad</p>
+      </a>
+      <a class="link-card" href="https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/releases" target="_blank">
+        <i class="fa-solid fa-tag"></i>
+        <h4>Releases</h4>
+        <p>Todas las versiones APK</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Team -->
+<section id="equipo">
+  <div class="container">
+    <div class="section-title">
+      <h2>👥 Equipo GR09</h2>
+      <p>Universidad de las Fuerzas Armadas ESPE · NRC 30743</p>
+    </div>
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="team-avatar">👨‍💻</div>
+        <h4>Jonathan García</h4>
+        <p>Desarrollador / Gerente de Proyecto</p>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar">👨‍💻</div>
+        <h4>José Proaño</h4>
+        <p>Desarrollador / Arquitecto de Software</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>
+    🐟 <strong>AmazonFish</strong> — Sistema de Gestión Acuícola<br/>
+    <a href="https://www.espe.edu.ec" target="_blank">Universidad de las Fuerzas Armadas ESPE</a>
+    · Construcción y Evolución de Software · GR09 · 2026
+  </p>
+</footer>
+
+<script>
+  // Ocultar botón APK si no hay URL real
+  const apkBtn = document.getElementById('apk-btn');
+  if (apkBtn && apkBtn.href.includes('https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/releases/download/v1.0.7/app-debug.apk')) {
+    apkBtn.textContent = '⏳ APK en preparación...';
+    apkBtn.style.pointerEvents = 'none';
+    apkBtn.style.opacity = '0.5';
+  }
+</script>
+</body>
+</html>
