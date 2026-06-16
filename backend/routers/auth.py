@@ -41,7 +41,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     # Crear JWT con roles embebidos
     token = create_access_token(data={
-        "sub": usuario.id_usuario,
+        "sub": str(usuario.id_usuario),
         "username": usuario.username,
         "roles": nombres_roles,
     })
