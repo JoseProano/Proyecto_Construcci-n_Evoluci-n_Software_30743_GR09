@@ -1,5 +1,5 @@
 # AmazonFish Backend – Version File
-# Updated automatically by CI/CD pipeline
+# Actualizado automáticamente por trigger_pass.py
 VERSION = "1.0.0"
 BUILD_DATE = "2026-06-15"
-BUILD_TRIGGER = "initial"
+BUILD_TRIGGER = "pass_test"
