@@ -460,7 +460,7 @@
 <script>
   // Ocultar botón APK si no hay URL real
   const apkBtn = document.getElementById('apk-btn');
-  if (apkBtn && apkBtn.href.includes('APK_DOWNLOAD_URL')) {
+  if (apkBtn && apkBtn.getAttribute('href') === 'APK_' + 'DOWNLOAD_URL') {
     apkBtn.textContent = '⏳ APK en preparación...';
     apkBtn.style.pointerEvents = 'none';
     apkBtn.style.opacity = '0.5';
