@@ -3,8 +3,11 @@ AmazonFish Backend – Schemas Pydantic v2
 Validación de entradas/salidas para la API REST.
 """
 from pydantic import BaseModel, field_validator
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
+from uuid import UUID
+
+UUID_STR = Union[UUID, str]
 
 
 # ════════════════════════════════════════════════════════════════
@@ -33,7 +36,7 @@ class PersonaUpdate(BaseModel):
 
 
 class PersonaResponse(PersonaBase):
-    id_persona: str
+    id_persona: UUID_STR
     fecha_creacion: datetime
 
     model_config = {"from_attributes": True}
@@ -60,7 +63,7 @@ class RolUpdate(BaseModel):
 
 
 class RolResponse(RolBase):
-    id_rol: str
+    id_rol: UUID_STR
     fecha_creacion: datetime
 
     model_config = {"from_attributes": True}
@@ -71,9 +74,9 @@ class RolResponse(RolBase):
 # ════════════════════════════════════════════════════════════════
 
 class UsuarioRolResponse(BaseModel):
-    id_usuario_rol: str
-    id_usuario: str
-    id_rol: str
+    id_usuario_rol: UUID_STR
+    id_usuario: UUID_STR
+    id_rol: UUID_STR
     fecha_asignacion: datetime
     estado: bool
     rol: Optional[RolResponse] = None
@@ -82,8 +85,8 @@ class UsuarioRolResponse(BaseModel):
 
 
 class AsignarRolSchema(BaseModel):
-    id_usuario: str
-    id_rol: str
+    id_usuario: UUID_STR
+    id_rol: UUID_STR
 
 
 # ════════════════════════════════════════════════════════════════
@@ -96,7 +99,7 @@ class UsuarioBase(BaseModel):
 
 
 class UsuarioCreate(UsuarioBase):
-    id_persona: str
+    id_persona: UUID_STR
     password: str
 
     @field_validator("password")
@@ -114,8 +117,8 @@ class UsuarioUpdate(BaseModel):
 
 
 class UsuarioResponse(UsuarioBase):
-    id_usuario: str
-    id_persona: str
+    id_usuario: UUID_STR
+    id_persona: UUID_STR
     fecha_creacion: datetime
     persona: Optional[PersonaResponse] = None
 
@@ -170,7 +173,7 @@ class ProveedorJuridicoCreate(ProveedorBase):
 
 
 class ProveedorResponse(ProveedorBase):
-    id_proveedor: str
+    id_proveedor: UUID_STR
     tipo_proveedor: str
     fecha_registro: datetime
 
@@ -189,7 +192,7 @@ class ProductoBase(BaseModel):
     stock_minimo: float = 0.0
     unidad_medida: str = "kg"
     estado: bool = True
-    id_proveedor: Optional[str] = None
+    id_proveedor: Optional[UUID_STR] = None
 
 
 class BalanceadoCreate(ProductoBase):
@@ -228,7 +231,7 @@ class ProductoUpdate(BaseModel):
 
 
 class ProductoResponse(ProductoBase):
-    id_producto: str
+    id_producto: UUID_STR
     codigo_producto: str
     tipo_producto: str
     fecha_registro: datetime
