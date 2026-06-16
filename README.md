@@ -1,6 +1,6 @@
 # 🐟 AmazonFish – Sistema de Gestión Acuícola
 
-[![CI/CD Pipeline](https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions)
+[![CI/CD Pipeline](https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/actions)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amazonfish-gr09&metric=alert_status)](https://sonarcloud.io/project/overview?id=amazonfish-gr09)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=amazonfish-gr09&metric=coverage)](https://sonarcloud.io/project/overview?id=amazonfish-gr09)
 
