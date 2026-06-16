@@ -122,13 +122,13 @@ Ve a: **GitHub repo → Settings → Secrets and variables → Actions → New r
 
 | Secret | Valor |
 |--------|-------|
-| `DATABASE_URL` | `postgresql://postgres:Construccion_30743@db.qzumnczcygjsszxbmhqk.supabase.co:5432/postgres` |
-| `SECRET_KEY` | Una cadena aleatoria larga (ej: `amazonfish-gr09-jwt-secret-2026-muy-seguro`) |
-| `TELEGRAM_BOT_TOKEN` | `8969161840:AAELBx59ANv7Z4B3BhJigkCcoHO87whKvyg` |
-| `TELEGRAM_CHAT_ID` | `8177446788` |
-| `SONAR_TOKEN` | `ace5a6e8f9b6bb87a367ead09039126666614b7e` |
-| `RENDER_DEPLOY_HOOK_URL` | (obtener desde Render Dashboard después de crear el servicio) |
-| `API_BASE_URL` | `https://amazonfish-backend.onrender.com` (URL de Render) |
+| `DATABASE_URL` | La URL de conexión del Pooler de Supabase (`postgresql://postgres.<ID_PROYECTO>:<PASSWORD>@<HOST_POOLER>:6543/postgres`) |
+| `SECRET_KEY` | Una cadena aleatoria larga para firmas JWT (ej: `amazonfish-gr09-jwt-secret-2026-muy-seguro`) |
+| `TELEGRAM_BOT_TOKEN` | El token HTTP de tu bot de Telegram obtenido con @BotFather |
+| `TELEGRAM_CHAT_ID` | Tu ID de chat de Telegram obtenido con @userinfobot |
+| `SONAR_TOKEN` | El token de acceso generado desde SonarCloud en My Account → Security |
+| `RENDER_DEPLOY_HOOK_URL` | La URL de despliegue obtenida de Render en Settings → Deploy Hook |
+| `API_BASE_URL` | La URL de producción de tu backend en Render (ej: `https://amazonfish-backend.onrender.com`) |
 
 ---
 
@@ -140,7 +140,7 @@ Ve a: **GitHub repo → Settings → Secrets and variables → Actions → New r
 4. En la configuración, selecciona **"With GitHub Actions"**
 5. Cuando te pida el project key, usa: `amazonfish-gr09`
 6. Organization key: `joseproano`
-7. Copia el `SONAR_TOKEN` (ya lo tienes: `ace5a6e8f9b6bb87a367ead09039126666614b7e`)
+7. Copia el `SONAR_TOKEN` generado y regístralo en tus Secrets de GitHub.
 
 ---
 
