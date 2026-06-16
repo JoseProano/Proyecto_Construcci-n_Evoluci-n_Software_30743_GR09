@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────────────
+# AmazonFish – render.yaml
+# Configuración declarativa para despliegue en Render (free tier)
+# Documentación: https://render.com/docs/yaml-spec
+# ─────────────────────────────────────────────────────────────────
+services:
+  - type: web
+    name: amazonfish-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Se configura manualmente en Render Dashboard
+      - key: SECRET_KEY
+        sync: false          # Se configura manualmente en Render Dashboard
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production

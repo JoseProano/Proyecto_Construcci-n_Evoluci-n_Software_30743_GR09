@@ -1,0 +1,54 @@
+# ── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.coverage
+coverage.xml
+htmlcov/
+*.db
+*.sqlite3
+.pytest_cache/
+
+# ── Flutter / Dart ───────────────────────────────────────────────
+app/.dart_tool/
+app/.packages
+app/.pub-cache/
+app/.pub/
+app/build/
+app/*.iml
+app/android/.gradle/
+app/android/captures/
+app/android/key.properties
+app/android/local.properties
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/ios/Pods/
+app/ios/.symlinks/
+app/web/
+
+# ── General ──────────────────────────────────────────────────────
+.DS_Store
+*.log
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+node_modules/
+.terraform/
+
+# ── Secrets ──────────────────────────────────────────────────────
+*.pem
+*.key
+secrets.yml
+.env.local
+.env.production

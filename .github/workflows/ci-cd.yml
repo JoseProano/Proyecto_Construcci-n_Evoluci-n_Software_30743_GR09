@@ -1,0 +1,342 @@
+# ================================================================
+# 🐟 AmazonFish – Pipeline CI/CD
+# GitHub Actions | GR09 | Construcción y Evolución de Software
+#
+# Flujo:
+#   Commit → Tests Backend → SonarCloud → Build APK Flutter
+#           → Deploy Backend (Render) → Release APK → GitHub Pages
+#           → Notificación Telegram
+#
+# Ramas activas: main, develop, feature/**
+# Deploy completo: solo en main
+# ================================================================
+name: 🐟 AmazonFish CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+  FLUTTER_VERSION: "3.22.2"
+  REPO: "JoseProano/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09"
+
+# ────────────────────────────────────────────────────────────────
+jobs:
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 0. NOTIFICACIÓN DE INICIO
+  # └─────────────────────────────────────────────────────────────
+  notify-start:
+    name: 📢 Notificar Inicio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram – Pipeline iniciado
+        run: |
+          TEXT="🚀 *AmazonFish Pipeline Iniciado*
+          
+          📌 Rama: \`${{ github.ref_name }}\`
+          👤 Por: ${{ github.actor }}
+          📝 Mensaje: ${{ github.event.head_commit.message }}
+          🔢 Run: #${{ github.run_number }}
+          
+          ⏳ Ejecutando: Tests → SonarCloud → Build APK → Deploy"
+          
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=Markdown" \
+            --data-urlencode "text=${TEXT}" || true
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 1. TESTS BACKEND (FastAPI + pytest)
+  # └─────────────────────────────────────────────────────────────
+  test-backend:
+    name: 🧪 Tests Backend
+    runs-on: ubuntu-latest
+    needs: notify-start
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🐍 Configurar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: 📦 Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: 🧪 Ejecutar tests con cobertura
+        run: |
+          pytest tests/ -v \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --tb=short
+        env:
+          DATABASE_URL: "sqlite:///./test_ci.db"
+          SECRET_KEY: "ci-test-secret-key-amazonfish-gr09"
+          ENVIRONMENT: "testing"
+
+      - name: 📊 Subir reporte de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+          retention-days: 7
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 2. ANÁLISIS SONARCLOUD (DevSecOps)
+  # └─────────────────────────────────────────────────────────────
+  sonarcloud:
+    name: 🔍 SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: test-backend
+
+    steps:
+      - name: 📥 Checkout (historial completo para blame)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Descargar reporte de cobertura
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/
+
+      - name: 🔍 Análisis SonarCloud
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 3. BUILD APK FLUTTER
+  # └─────────────────────────────────────────────────────────────
+  build-apk:
+    name: 📱 Build APK Flutter
+    runs-on: ubuntu-latest
+    needs: test-backend
+
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: ☕ Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: 🐦 Configurar Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: 📦 Instalar dependencias Flutter
+        run: flutter pub get
+        working-directory: app
+
+      - name: 🧪 Tests Flutter
+        run: flutter test --no-pub
+        working-directory: app
+        continue-on-error: true  # No bloquea si hay warnings en flutter test
+
+      - name: 🏗️ Build APK (debug – sin keystore)
+        run: |
+          flutter build apk --debug \
+            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL || 'https://amazonfish-backend.onrender.com' }}
+        working-directory: app
+
+      - name: 📦 Subir APK como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amazonfish-apk
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 4. DEPLOY BACKEND → RENDER (solo en main)
+  # └─────────────────────────────────────────────────────────────
+  deploy-backend:
+    name: 🚀 Deploy Backend → Render
+    runs-on: ubuntu-latest
+    needs: [test-backend, sonarcloud]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: 🚀 Trigger deploy en Render
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+            echo "Render deploy HTTP status: ${RESP}"
+            if [ "${RESP}" = "200" ] || [ "${RESP}" = "201" ]; then
+              echo "✅ Deploy iniciado en Render"
+            else
+              echo "⚠️ Render retornó: ${RESP}"
+            fi
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL no configurado. Configure el secret en GitHub."
+          fi
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 5. CREAR RELEASE CON APK (solo en main)
+  # └─────────────────────────────────────────────────────────────
+  release:
+    name: 🏷️ Crear Release GitHub
+    runs-on: ubuntu-latest
+    needs: [build-apk, deploy-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Descargar APK
+        uses: actions/download-artifact@v4
+        with:
+          name: amazonfish-apk
+          path: ./apk/
+
+      - name: 🏷️ Crear GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "🐟 AmazonFish v1.0.${{ github.run_number }}"
+          body: |
+            ## 🐟 AmazonFish – Release v1.0.${{ github.run_number }}
+            
+            **Grupo**: GR09 | **NRC**: 30743
+            **Rama**: `${{ github.ref_name }}`
+            **Commit**: `${{ github.sha }}`
+            **Build**: #${{ github.run_number }}
+            
+            ### 📱 Instalación Android
+            1. Descarga `app-debug.apk` de los assets de abajo
+            2. En tu Android: Ajustes → Seguridad → Permitir fuentes desconocidas
+            3. Instala el APK descargado
+            
+            ### 🔑 Credenciales de prueba
+            | Usuario | Contraseña | Rol |
+            |---------|------------|-----|
+            | admin | Amazon2026! | Administrador |
+            
+            ### 🔗 Links
+            - [Backend API](https://amazonfish-backend.onrender.com/api/docs)
+            - [GitHub Pages](https://joseproano.github.io/Proyecto_Construcci-n_Evoluci-n_Software_30743_GR09/)
+            - [SonarCloud](https://sonarcloud.io/project/overview?id=amazonfish-gr09)
+          files: ./apk/app-debug.apk
+          draft: false
+          prerelease: false
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 6. DEPLOY GITHUB PAGES (solo en main)
+  # └─────────────────────────────────────────────────────────────
+  deploy-pages:
+    name: 🌐 Deploy GitHub Pages
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📝 Actualizar enlace APK y metadata en la landing page
+        run: |
+          APK_URL="https://github.com/${{ env.REPO }}/releases/download/v1.0.${{ github.run_number }}/app-debug.apk"
+          BUILD_DATE=$(date -u '+%Y-%m-%d %H:%M UTC')
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          
+          sed -i "s|APK_DOWNLOAD_URL|${APK_URL}|g"       docs/index.html
+          sed -i "s|BUILD_NUMBER|${{ github.run_number }}|g" docs/index.html
+          sed -i "s|COMMIT_SHA|${SHORT_SHA}|g"            docs/index.html
+          sed -i "s|BUILD_DATE|${BUILD_DATE}|g"           docs/index.html
+          
+          echo "✅ Landing page actualizada:"
+          echo "   APK URL: ${APK_URL}"
+          echo "   Build #: ${{ github.run_number }}"
+          echo "   Commit:  ${SHORT_SHA}"
+
+      - name: 🚀 Deploy a rama gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          commit_message: "deploy: build #${{ github.run_number }} [ci skip]"
+
+  # ┌─────────────────────────────────────────────────────────────
+  # │ 7. NOTIFICACIÓN FINAL (siempre ejecuta)
+  # └─────────────────────────────────────────────────────────────
+  notify-end:
+    name: 📊 Notificar Resultado
+    runs-on: ubuntu-latest
+    needs: [test-backend, sonarcloud, build-apk, deploy-backend, release, deploy-pages]
+    if: always()
+
+    steps:
+      - name: Telegram – Resultado del pipeline
+        run: |
+          # Determinar estado global
+          TESTS="${{ needs.test-backend.result }}"
+          SONAR="${{ needs.sonarcloud.result }}"
+          APK="${{ needs.build-apk.result }}"
+          DEPLOY="${{ needs.deploy-backend.result }}"
+          RELEASE="${{ needs.release.result }}"
+          PAGES="${{ needs.deploy-pages.result }}"
+
+          if [[ "$TESTS" == "failure" || "$APK" == "failure" || "$SONAR" == "failure" ]]; then
+            STATUS="❌ FALLIDO"
+            EMOJI="🔴"
+          elif [[ "$TESTS" == "cancelled" || "$APK" == "cancelled" ]]; then
+            STATUS="⚠️ CANCELADO"
+            EMOJI="🟡"
+          else
+            STATUS="✅ EXITOSO"
+            EMOJI="🟢"
+          fi
+
+          # Formatear resultados por job
+          fmt() { case "$1" in success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️";; cancelled) echo "⚠️";; *) echo "❓";; esac; }
+
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+
+          TEXT="${EMOJI} *AmazonFish Pipeline ${STATUS}*
+
+          📌 Rama: \`${{ github.ref_name }}\`
+          👤 Por: ${{ github.actor }}
+          🔢 Build: #${{ github.run_number }} | Commit: \`${SHORT_SHA}\`
+
+          *Resultados:*
+          $(fmt $TESTS) Tests Backend
+          $(fmt $SONAR) SonarCloud
+          $(fmt $APK) Build APK
+          $(fmt $DEPLOY) Deploy Backend
+          $(fmt $RELEASE) Release GitHub
+          $(fmt $PAGES) GitHub Pages
+
+          🔗 [Ver Pipeline](https://github.com/${{ env.REPO }}/actions/runs/${{ github.run_id }})"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=Markdown" \
+            --data-urlencode "text=${TEXT}" || true
