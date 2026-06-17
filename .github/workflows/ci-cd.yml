@@ -291,6 +291,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-backend, sonarcloud, build-apk, deploy-backend, release, deploy-pages]
     if: always()
+    permissions:
+      actions: read
+      contents: read
 
     steps:
       - name: Telegram – Resultado del pipeline
@@ -340,3 +343,51 @@ jobs:
             -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d "parse_mode=Markdown" \
             --data-urlencode "text=${TEXT}" || true
+
+      - name: Descargar logs de GitHub y enviar a Telegram
+        run: |
+          echo "Descargando logs del run ${{ github.run_id }}..."
+          curl -s -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/logs" \
+            -o logs.zip
+
+          if [ -f logs.zip ]; then
+            mkdir -p extracted_logs
+            unzip -q logs.zip -d extracted_logs
+            
+            LOG_FILE="logs_pipeline_run_${{ github.run_number }}.txt"
+            echo "================================================================" > "$LOG_FILE"
+            echo "🐟 AMAZONFISH - LOGS COMPLETOS DEL PIPELINE (RUN #${{ github.run_number }})" >> "$LOG_FILE"
+            echo "Rama: ${{ github.ref_name }} | Commit: ${{ github.sha }}" >> "$LOG_FILE"
+            echo "================================================================" >> "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+            
+            # Recorrer los archivos txt ordenados y concatenarlos
+            find extracted_logs -type f -name "*.txt" | sort -V | while read -r f; do
+              STEP_NAME=$(basename "$f" .txt)
+              # Evitar concatenar logs vacios o de la notificacion final
+              if [[ "$STEP_NAME" != *"Notificar Resultado"* ]]; then
+                echo "================================================================" >> "$LOG_FILE"
+                echo "⚙️ ETAPA: $STEP_NAME" >> "$LOG_FILE"
+                echo "================================================================" >> "$LOG_FILE"
+                cat "$f" >> "$LOG_FILE"
+                echo "" >> "$LOG_FILE"
+                echo "" >> "$LOG_FILE"
+              fi
+            done
+            
+            # Enviar el archivo consolidado a Telegram usando sendDocument
+            if [ -s "$LOG_FILE" ]; then
+              echo "Enviando logs a Telegram..."
+              curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+                -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+                -F "document=@$LOG_FILE" \
+                -F "caption=📄 Logs consolidados del Pipeline (Run #${{ github.run_number }})" || true
+            else
+              echo "El archivo de logs está vacío."
+            fi
+          else
+            echo "No se pudo descargar el archivo zip de logs."
+          fi
+
