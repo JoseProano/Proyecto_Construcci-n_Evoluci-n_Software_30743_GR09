@@ -80,7 +80,7 @@ jobs:
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
-            --tb=short
+            --tb=short 2>&1 | tee test_backend.log
         env:
           DATABASE_URL: "sqlite:///./test_ci.db"
           SECRET_KEY: "ci-test-secret-key-amazonfish-gr09"
@@ -92,6 +92,14 @@ jobs:
           name: coverage-report
           path: backend/coverage.xml
           retention-days: 7
+
+      - name: 📊 Subir log de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-backend-log
+          path: backend/test_backend.log
+          retention-days: 1
 
   # ┌─────────────────────────────────────────────────────────────
   # │ 2. ANÁLISIS SONARCLOUD (DevSecOps)
@@ -145,18 +153,18 @@ jobs:
           cache: true
 
       - name: 📦 Instalar dependencias Flutter
-        run: flutter pub get
+        run: flutter pub get 2>&1 | tee build_apk.log
         working-directory: app
 
       - name: 🧪 Tests Flutter
-        run: flutter test --no-pub
+        run: flutter test --no-pub 2>&1 | tee -a build_apk.log
         working-directory: app
         continue-on-error: true  # No bloquea si hay warnings en flutter test
 
       - name: 🏗️ Build APK (debug – sin keystore)
         run: |
           flutter build apk --debug \
-            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL || 'https://amazonfish-backend.onrender.com' }}
+            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL || 'https://amazonfish-backend.onrender.com' }} 2>&1 | tee -a build_apk.log
         working-directory: app
 
       - name: 📦 Subir APK como artifact
@@ -165,6 +173,14 @@ jobs:
           name: amazonfish-apk
           path: app/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
+
+      - name: 📊 Subir log de build apk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-apk-log
+          path: app/build_apk.log
+          retention-days: 1
 
   # ┌─────────────────────────────────────────────────────────────
   # │ 4. DEPLOY BACKEND → RENDER (solo en main)
@@ -179,17 +195,25 @@ jobs:
       - name: 🚀 Trigger deploy en Render
         run: |
           if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+            RESP=$(curl -s -o deploy_backend.log -w "%{http_code}" \
               -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
-            echo "Render deploy HTTP status: ${RESP}"
+            echo "Render deploy HTTP status: ${RESP}" >> deploy_backend.log
             if [ "${RESP}" = "200" ] || [ "${RESP}" = "201" ]; then
               echo "✅ Deploy iniciado en Render"
             else
               echo "⚠️ Render retornó: ${RESP}"
             fi
           else
-            echo "⚠️ RENDER_DEPLOY_HOOK_URL no configurado. Configure el secret en GitHub."
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL no configurado. Configure el secret en GitHub." > deploy_backend.log
           fi
+
+      - name: 📊 Subir log de deploy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-backend-log
+          path: deploy_backend.log
+          retention-days: 1
 
   # ┌─────────────────────────────────────────────────────────────
   # │ 5. CREAR RELEASE CON APK (solo en main)
@@ -265,10 +289,10 @@ jobs:
           SHORT_SHA="${{ github.sha }}"
           SHORT_SHA="${SHORT_SHA:0:7}"
           
-          sed -i "s|APK_DOWNLOAD_URL|${APK_URL}|g"       docs/index.html
-          sed -i "s|BUILD_NUMBER|${{ github.run_number }}|g" docs/index.html
-          sed -i "s|COMMIT_SHA|${SHORT_SHA}|g"            docs/index.html
-          sed -i "s|BUILD_DATE|${BUILD_DATE}|g"           docs/index.html
+          sed -i "s|APK_DOWNLOAD_URL|${APK_URL}|g"       docs/index.html 2>&1 | tee deploy_pages.log
+          sed -i "s|BUILD_NUMBER|${{ github.run_number }}|g" docs/index.html 2>&1 | tee -a deploy_pages.log
+          sed -i "s|COMMIT_SHA|${SHORT_SHA}|g"            docs/index.html 2>&1 | tee -a deploy_pages.log
+          sed -i "s|BUILD_DATE|${BUILD_DATE}|g"           docs/index.html 2>&1 | tee -a deploy_pages.log
           
           echo "✅ Landing page actualizada:"
           echo "   APK URL: ${APK_URL}"
@@ -283,6 +307,14 @@ jobs:
           publish_branch: gh-pages
           commit_message: "deploy: build #${{ github.run_number }} [ci skip]"
 
+      - name: 📊 Subir log de deploy pages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-pages-log
+          path: deploy_pages.log
+          retention-days: 1
+
   # ┌─────────────────────────────────────────────────────────────
   # │ 7. NOTIFICACIÓN FINAL (siempre ejecuta)
   # └─────────────────────────────────────────────────────────────
@@ -291,9 +323,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-backend, sonarcloud, build-apk, deploy-backend, release, deploy-pages]
     if: always()
-    permissions:
-      actions: read
-      contents: read
 
     steps:
       - name: Telegram – Resultado del pipeline
@@ -344,50 +373,42 @@ jobs:
             -d "parse_mode=Markdown" \
             --data-urlencode "text=${TEXT}" || true
 
-      - name: Descargar logs de GitHub y enviar a Telegram
-        run: |
-          echo "Descargando logs del run ${{ github.run_id }}..."
-          curl -s -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/logs" \
-            -o logs.zip
+      - name: Descargar logs de Jobs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-log'
+          merge-multiple: true
+          ignore-on-no-artifacts-found: true
 
-          if [ -f logs.zip ]; then
-            mkdir -p extracted_logs
-            unzip -q logs.zip -d extracted_logs
-            
-            LOG_FILE="logs_pipeline_run_${{ github.run_number }}.txt"
-            echo "================================================================" > "$LOG_FILE"
-            echo "🐟 AMAZONFISH - LOGS COMPLETOS DEL PIPELINE (RUN #${{ github.run_number }})" >> "$LOG_FILE"
-            echo "Rama: ${{ github.ref_name }} | Commit: ${{ github.sha }}" >> "$LOG_FILE"
-            echo "================================================================" >> "$LOG_FILE"
-            echo "" >> "$LOG_FILE"
-            
-            # Recorrer los archivos txt ordenados y concatenarlos
-            find extracted_logs -type f -name "*.txt" | sort -V | while read -r f; do
-              STEP_NAME=$(basename "$f" .txt)
-              # Evitar concatenar logs vacios o de la notificacion final
-              if [[ "$STEP_NAME" != *"Notificar Resultado"* ]]; then
-                echo "================================================================" >> "$LOG_FILE"
-                echo "⚙️ ETAPA: $STEP_NAME" >> "$LOG_FILE"
-                echo "================================================================" >> "$LOG_FILE"
-                cat "$f" >> "$LOG_FILE"
-                echo "" >> "$LOG_FILE"
-                echo "" >> "$LOG_FILE"
-              fi
-            done
-            
-            # Enviar el archivo consolidado a Telegram usando sendDocument
-            if [ -s "$LOG_FILE" ]; then
-              echo "Enviando logs a Telegram..."
-              curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-                -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-                -F "document=@$LOG_FILE" \
-                -F "caption=📄 Logs consolidados del Pipeline (Run #${{ github.run_number }})" || true
-            else
-              echo "El archivo de logs está vacío."
+      - name: Consolidar y enviar logs
+        run: |
+          LOG_FILE="logs_pipeline_run_${{ github.run_number }}.txt"
+          
+          echo "================================================================" > "$LOG_FILE"
+          echo "🐟 AMAZONFISH - LOGS COMPLETOS DEL PIPELINE (RUN #${{ github.run_number }})" >> "$LOG_FILE"
+          echo "Rama: ${{ github.ref_name }} | Commit: ${{ github.sha }}" >> "$LOG_FILE"
+          echo "================================================================" >> "$LOG_FILE"
+          echo "" >> "$LOG_FILE"
+          
+          # Concatenar todos los archivos de logs encontrados en el orden esperado
+          for log in test_backend.log build_apk.log deploy_backend.log deploy_pages.log; do
+            if [ -f "$log" ]; then
+              echo "================================================================" >> "$LOG_FILE"
+              echo "⚙️ ETAPA: $log" >> "$LOG_FILE"
+              echo "================================================================" >> "$LOG_FILE"
+              cat "$log" >> "$LOG_FILE"
+              echo "" >> "$LOG_FILE"
+              echo "" >> "$LOG_FILE"
             fi
+          done
+          
+          if [ -s "$LOG_FILE" ]; then
+            echo "Enviando logs a Telegram..."
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$LOG_FILE" \
+              -F "caption=📄 Logs consolidados del Pipeline (Run #${{ github.run_number }})" || true
           else
-            echo "No se pudo descargar el archivo zip de logs."
+            echo "No se encontraron logs para consolidar."
           fi
 
