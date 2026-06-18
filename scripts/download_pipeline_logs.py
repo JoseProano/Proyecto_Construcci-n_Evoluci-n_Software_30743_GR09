@@ -5,6 +5,11 @@ import urllib.request
 import urllib.error
 import ssl
 
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Custom redirect handler to prevent automatic redirect following."""
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        return None
+
 def main():
     # Fetch environment variables
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -50,6 +55,10 @@ def main():
 
     consolidated_log_path = f"logs_pipeline_run_{run_number}.txt"
     
+    # Configure our custom redirect opener
+    https_handler = urllib.request.HTTPSHandler(context=ctx)
+    opener = urllib.request.build_opener(NoRedirectHandler, https_handler)
+
     with open(consolidated_log_path, "w", encoding="utf-8") as out:
         out.write("================================================================\n")
         out.write(f"🐟 AMAZONFISH - LOGS COMPLETOS DEL PIPELINE (RUN #{run_number})\n")
@@ -83,15 +92,34 @@ def main():
             )
             
             try:
-                with urllib.request.urlopen(log_req, context=ctx) as log_res:
-                    log_text = log_res.read().decode("utf-8", errors="ignore")
-                    
-                    out.write("================================================================\n")
-                    out.write(f"⚙️ JOB: {job_name} (Status: {job.get('conclusion')})\n")
-                    out.write("================================================================\n")
-                    out.write(log_text)
-                    out.write("\n\n")
-                    print(f"Successfully appended logs for job '{job_name}'.")
+                log_text = ""
+                try:
+                    # Try downloading directly. If it redirects, NoRedirectHandler raises HTTPError
+                    with opener.open(log_req) as log_res:
+                        log_text = log_res.read().decode("utf-8", errors="ignore")
+                except urllib.error.HTTPError as e:
+                    # Catch the redirect (302 Found)
+                    if e.code in (301, 302, 303, 307, 308):
+                        redirect_url = e.headers.get("Location")
+                        print(f"Following redirect for job '{job_name}' to storage provider...")
+                        # Request the redirected URL WITHOUT the GITHUB_TOKEN Authorization header
+                        req2 = urllib.request.Request(
+                            redirect_url,
+                            headers={
+                                "User-Agent": "AmazonFish-DevOps"
+                            }
+                        )
+                        with urllib.request.urlopen(req2, context=ctx) as log_res2:
+                            log_text = log_res2.read().decode("utf-8", errors="ignore")
+                    else:
+                        raise e
+
+                out.write("================================================================\n")
+                out.write(f"⚙️ JOB: {job_name} (Status: {job.get('conclusion')})\n")
+                out.write("================================================================\n")
+                out.write(log_text)
+                out.write("\n\n")
+                print(f"Successfully appended logs for job '{job_name}'.")
             except Exception as e:
                 print(f"Error downloading log for job {job_name}: {e}")
                 out.write("================================================================\n")
