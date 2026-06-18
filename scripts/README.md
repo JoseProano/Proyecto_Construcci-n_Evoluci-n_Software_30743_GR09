@@ -50,9 +50,25 @@ python scripts/cleanup_fail.py
 
 ---
 
+### `promote.py` – Promover cambios a producción (main)
+Automatiza la fusión (merge) de la rama actual (por ejemplo, `develop`) hacia la rama `main` y realiza el push. 
+Esto disparará el pipeline completo en `main` que realiza las etapas de:
+- 🚀 Deploy a Render (Backend)
+- 🏷️ Crear Release en GitHub (con el APK adjunto)
+- 🌐 Deploy a GitHub Pages (Landing Page para descargar el APK)
+
+```bash
+python scripts/promote.py
+```
+
+---
+
 ## Flujo de demostración sugerido
 
-1. Ejecutar `trigger_pass.py` → mostrar pipeline verde
-2. Ejecutar `trigger_fail.py` → mostrar pipeline rojo + Telegram
-3. Ejecutar `cleanup_fail.py` → restaurar estado correcto
-4. Verificar en GitHub Actions el historial de ejecuciones
+1. Asegúrate de estar en `develop`: `git checkout develop`
+2. Ejecutar `trigger_pass.py` → mostrar pipeline verde en `develop` (no despliega)
+3. Ejecutar `trigger_fail.py` → mostrar pipeline rojo en `develop` + Telegram (detecta error)
+4. Ejecutar `cleanup_fail.py` → restaurar estado correcto en `develop` (vuelve a verde)
+5. Ejecutar `promote.py` → promueve los cambios a `main` y corre el pipeline completo (incluyendo Deploy backend, GitHub Release y GitHub Pages).
+6. Verificar en GitHub Actions el historial de ejecuciones.
+
