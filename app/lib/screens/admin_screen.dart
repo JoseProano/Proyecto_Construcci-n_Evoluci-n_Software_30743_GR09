@@ -150,25 +150,30 @@ class _RoleScreenState extends State<_RoleScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.set_meal, color: Color(0xFF38BDF8)),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Text(
               'AmazonFish',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: widget.roleColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: widget.roleColor.withOpacity(0.4)),
-              ),
-              child: Text(
-                widget.title,
-                style: GoogleFonts.inter(
-                  fontSize: 11, color: widget.roleColor, fontWeight: FontWeight.bold),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: widget.roleColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: widget.roleColor.withOpacity(0.4)),
+                ),
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 10, color: widget.roleColor, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
