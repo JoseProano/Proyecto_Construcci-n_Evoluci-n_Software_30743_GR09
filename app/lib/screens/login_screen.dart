@@ -241,22 +241,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
               ),
 
-              // Botón de Toggle del Tema en esquina superior
-              Positioned(
-                top: 40,
-                right: 16,
-                child: IconButton(
-                  icon: Icon(
-                    isDark ? Icons.light_mode : Icons.dark_mode,
-                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
-                  ),
-                  onPressed: () {
-                    themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
-                  },
-                ),
-              ),
-
-              // Contenido principal
+              // Contenido principal (movido antes para que el botón esté encima)
               Center(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
@@ -338,6 +323,21 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                     ),
                   ),
+                ),
+              ),
+
+              // Botón de Toggle del Tema en esquina superior (puesto después del Center para recibir clics)
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: Icon(
+                    isDark ? Icons.light_mode : Icons.dark_mode,
+                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
+                  ),
+                  onPressed: () {
+                    themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+                  },
                 ),
               ),
 
