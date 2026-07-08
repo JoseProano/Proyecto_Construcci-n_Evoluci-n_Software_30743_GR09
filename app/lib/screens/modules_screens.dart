@@ -723,6 +723,127 @@ class _ProveedoresModuleState extends State<ProveedoresModule> {
     }
   }
 
+  void _crearProveedorDialog() {
+    String selectedTipo = 'natural';
+    final razonSocialCtrl = TextEditingController();
+    final correoCtrl = TextEditingController();
+    final telefonoCtrl = TextEditingController();
+    final direccionCtrl = TextEditingController();
+
+    // Natural
+    final nombresCtrl = TextEditingController();
+    final apellidosCtrl = TextEditingController();
+    final cedulaCtrl = TextEditingController();
+
+    // Juridico
+    final rucCtrl = TextEditingController();
+    final nombreComercialCtrl = TextEditingController();
+    final representanteLegalCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          title: Text('Añadir Proveedor', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          content: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedTipo,
+                      decoration: const InputDecoration(labelText: 'Tipo de Proveedor'),
+                      items: const [
+                        DropdownMenuItem(value: 'natural', child: Text('Persona Natural')),
+                        DropdownMenuItem(value: 'juridico', child: Text('Persona Jurídica')),
+                      ],
+                      onChanged: (val) => setDialogState(() => selectedTipo = val ?? 'natural'),
+                    ),
+                    TextField(controller: razonSocialCtrl, decoration: const InputDecoration(labelText: 'Razón Social / Nombre Comercial')),
+                    TextField(controller: correoCtrl, decoration: const InputDecoration(labelText: 'Correo')),
+                    TextField(controller: telefonoCtrl, decoration: const InputDecoration(labelText: 'Teléfono')),
+                    TextField(controller: direccionCtrl, decoration: const InputDecoration(labelText: 'Dirección')),
+
+                    if (selectedTipo == 'natural') ...[
+                      TextField(controller: nombresCtrl, decoration: const InputDecoration(labelText: 'Nombres')),
+                      TextField(controller: apellidosCtrl, decoration: const InputDecoration(labelText: 'Apellidos')),
+                      TextField(controller: cedulaCtrl, decoration: const InputDecoration(labelText: 'Cédula')),
+                    ] else ...[
+                      TextField(controller: rucCtrl, decoration: const InputDecoration(labelText: 'RUC')),
+                      TextField(controller: nombreComercialCtrl, decoration: const InputDecoration(labelText: 'Nombre Comercial')),
+                      TextField(controller: representanteLegalCtrl, decoration: const InputDecoration(labelText: 'Representante Legal')),
+                    ]
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                if (razonSocialCtrl.text.isEmpty) {
+                  AppDialog.show(context, title: 'Campos vacíos', message: 'La Razón Social es requerida.', type: DialogType.error);
+                  return;
+                }
+                if (selectedTipo == 'natural' && (nombresCtrl.text.isEmpty || apellidosCtrl.text.isEmpty)) {
+                  AppDialog.show(context, title: 'Campos vacíos', message: 'Nombres y Apellidos son requeridos para personas naturales.', type: DialogType.error);
+                  return;
+                }
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  final headers = await _getHeaders();
+                  final endpoint = selectedTipo == 'natural' ? 'natural' : 'juridico';
+                  
+                  final body = {
+                    'razon_social': razonSocialCtrl.text.trim(),
+                    'correo': correoCtrl.text.trim().isEmpty ? null : correoCtrl.text.trim(),
+                    'telefono': telefonoCtrl.text.trim().isEmpty ? null : telefonoCtrl.text.trim(),
+                    'direccion': direccionCtrl.text.trim().isEmpty ? null : direccionCtrl.text.trim(),
+                    'estado': true,
+                    'tipo_proveedor': selectedTipo,
+                    if (selectedTipo == 'natural') ...{
+                      'nombres': nombresCtrl.text.trim(),
+                      'apellidos': apellidosCtrl.text.trim(),
+                      'cedula': cedulaCtrl.text.trim().isEmpty ? null : cedulaCtrl.text.trim(),
+                    } else ...{
+                      'ruc': rucCtrl.text.trim().isEmpty ? null : rucCtrl.text.trim(),
+                      'nombre_comercial': nombreComercialCtrl.text.trim().isEmpty ? null : nombreComercialCtrl.text.trim(),
+                      'representante_legal': representanteLegalCtrl.text.trim().isEmpty ? null : representanteLegalCtrl.text.trim(),
+                    }
+                  };
+
+                  final res = await http.post(
+                    Uri.parse('$_baseUrl/api/v1/proveedores/$endpoint'),
+                    headers: headers,
+                    body: jsonEncode(body),
+                  );
+
+                  if (res.statusCode == 201) {
+                    AppDialog.show(context, title: 'Éxito', message: 'Proveedor creado correctamente', type: DialogType.success);
+                    _cargarProveedores();
+                  } else {
+                    final err = jsonDecode(res.body)['detail'];
+                    AppDialog.show(context, title: 'Error', message: err ?? 'No se pudo crear', type: DialogType.error);
+                  }
+                } catch (e) {
+                  // ignore
+                } finally {
+                  setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -753,6 +874,11 @@ class _ProveedoresModuleState extends State<ProveedoresModule> {
                 );
               },
             ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF0284C7),
+        onPressed: _crearProveedorDialog,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 }
@@ -1349,28 +1475,36 @@ class _ReportesModuleState extends State<ReportesModule> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54)),
-              const SizedBox(height: 4),
-              Text(value, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800)),
-            ],
-          )
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
