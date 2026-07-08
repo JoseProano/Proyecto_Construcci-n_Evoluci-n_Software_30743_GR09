@@ -100,3 +100,90 @@ def test_cancelar_pedido_borrador(client, db, auth_headers):
     # Verificar que cambió a cancelado
     db.refresh(ped)
     assert ped.estado == "cancelado"
+
+def test_crear_pedido_sin_detalles(client, auth_headers):
+    payload = {
+        "descuento": 0.0,
+        "detalles": []
+    }
+    resp = client.post("/api/v1/pedidos/", json=payload, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "al menos un producto" in resp.json()["detail"]
+
+def test_crear_pedido_cantidad_invalida(client, db, auth_headers):
+    prod = ProductoAcuicola(
+        codigo_producto="PROD-BAL-2026-1111",
+        nombre="Test Prod",
+        precio_unitario=5.0,
+        stock_actual=10.0,
+        unidad_medida="kg",
+        tipo_producto="balanceado",
+    )
+    db.add(prod)
+    db.commit()
+
+    payload = {
+        "descuento": 0.0,
+        "detalles": [
+            {"id_producto": prod.id_producto, "cantidad": -2.0}
+        ]
+    }
+    resp = client.post("/api/v1/pedidos/", json=payload, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "mayor a cero" in resp.json()["detail"]
+
+def test_crear_pedido_producto_inexistente(client, auth_headers):
+    payload = {
+        "descuento": 0.0,
+        "detalles": [
+            {"id_producto": "00000000-0000-0000-0000-000000000000", "cantidad": 2.0}
+        ]
+    }
+    resp = client.post("/api/v1/pedidos/", json=payload, headers=auth_headers)
+    assert resp.status_code == 404
+    assert "no encontrado" in resp.json()["detail"]
+
+def test_actualizar_pedido_no_encontrado(client, auth_headers):
+    payload = {
+        "descuento": 0.0,
+        "detalles": []
+    }
+    resp = client.put("/api/v1/pedidos/00000000-0000-0000-0000-000000000000", json=payload, headers=auth_headers)
+    assert resp.status_code == 404
+
+def test_actualizar_pedido_no_borrador(client, db, auth_headers):
+    ped = Pedido(
+        id_usuario="usuario-test-001",
+        estado="pagado",
+        subtotal=10.0,
+        total=10.0,
+    )
+    db.add(ped)
+    db.commit()
+
+    payload = {
+        "descuento": 0.0,
+        "detalles": []
+    }
+    resp = client.put(f"/api/v1/pedidos/{ped.id_pedido}", json=payload, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "estado 'borrador'" in resp.json()["detail"]
+
+def test_cancelar_pedido_no_encontrado(client, auth_headers):
+    resp = client.delete("/api/v1/pedidos/00000000-0000-0000-0000-000000000000", headers=auth_headers)
+    assert resp.status_code == 404
+
+def test_cancelar_pedido_no_borrador(client, db, auth_headers):
+    ped = Pedido(
+        id_usuario="usuario-test-001",
+        estado="pagado",
+        subtotal=10.0,
+        total=10.0,
+    )
+    db.add(ped)
+    db.commit()
+
+    resp = client.delete(f"/api/v1/pedidos/{ped.id_pedido}", headers=auth_headers)
+    assert resp.status_code == 400
+    assert "estado 'borrador'" in resp.json()["detail"]
+
