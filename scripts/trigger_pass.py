@@ -21,7 +21,7 @@ def run(cmd: str) -> None:
     print(f"  $ {cmd}")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=BASE_DIR)
     if result.returncode != 0:
-        print(f"  ❌ Error: {result.stderr}")
+        print(f"  ❌ Error: {result.stderr.strip() or result.stdout.strip()}")
         sys.exit(1)
     if result.stdout.strip():
         print(f"  {result.stdout.strip()}")
@@ -39,7 +39,7 @@ def main():
         f.write(f"# AmazonFish Backend – Version File\n")
         f.write(f"# Actualizado automáticamente por trigger_pass.py\n")
         f.write(f'VERSION = "{version}"\n')
-        f.write(f'BUILD_DATE = "{timestamp[:10]}"\n')
+        f.write(f'BUILD_DATE = "{timestamp[:19]}"\n')
         f.write(f'BUILD_TRIGGER = "pass_test"\n')
     print(f"  ✅ version.py actualizado: {timestamp}")
 

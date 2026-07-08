@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../main.dart';
 import 'login_screen.dart';
+import 'modules_screens.dart';
 
 /// Pantalla del Administrador – acceso completo al sistema.
 class AdminScreen extends StatelessWidget {
@@ -9,22 +11,13 @@ class AdminScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _RoleScreen(
+    return const _RoleScreen(
       title: 'Administrador',
-      roleColor: const Color(0xFFFF6B35),
+      roleColor: Color(0xFFFF6B35),
       icon: Icons.admin_panel_settings,
       greeting: 'Panel de Administración',
       description: 'Control total del sistema AmazonFish',
-      menuItems: const [
-        _MenuItem(Icons.people, 'Personas y Usuarios', 'Gestionar directorio'),
-        _MenuItem(Icons.shield, 'Roles y Permisos', 'Configurar accesos'),
-        _MenuItem(Icons.inventory, 'Inventario', 'Productos acuícolas'),
-        _MenuItem(Icons.local_shipping, 'Proveedores', 'Gestionar proveedores'),
-        _MenuItem(Icons.shopping_cart, 'Pedidos', 'Control de pedidos'),
-        _MenuItem(Icons.bar_chart, 'Reportes', 'Estadísticas y métricas'),
-        _MenuItem(Icons.sell, 'Ventas', 'Registro de ventas'),
-        _MenuItem(Icons.settings, 'Configuración', 'Ajustes del sistema'),
-      ],
+      roleType: 'admin',
     );
   }
 }
@@ -35,20 +28,13 @@ class VendedorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _RoleScreen(
+    return const _RoleScreen(
       title: 'Vendedor',
-      roleColor: const Color(0xFF00B4D8),
+      roleColor: Color(0xFF00B4D8),
       icon: Icons.point_of_sale,
       greeting: 'Panel de Ventas',
       description: 'Gestión de pedidos y ventas',
-      menuItems: const [
-        _MenuItem(Icons.inventory_2, 'Catálogo', 'Ver productos disponibles'),
-        _MenuItem(Icons.add_shopping_cart, 'Nuevo Pedido', 'Crear pedido'),
-        _MenuItem(Icons.receipt_long, 'Mis Pedidos', 'Historial de pedidos'),
-        _MenuItem(Icons.sell, 'Registrar Venta', 'Nueva venta'),
-        _MenuItem(Icons.people, 'Clientes (Socios)', 'Ver directorio'),
-        _MenuItem(Icons.bar_chart, 'Mi Resumen', 'Mis métricas'),
-      ],
+      roleType: 'vendedor',
     );
   }
 }
@@ -59,39 +45,34 @@ class SocioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _RoleScreen(
+    return const _RoleScreen(
       title: 'Socio',
-      roleColor: const Color(0xFF52B788),
+      roleColor: Color(0xFF52B788),
       icon: Icons.person,
       greeting: 'Mi Portal',
       description: 'Bienvenido al sistema AmazonFish',
-      menuItems: const [
-        _MenuItem(Icons.storefront, 'Catálogo de Productos', 'Ver disponibilidad'),
-        _MenuItem(Icons.add_shopping_cart, 'Hacer Pedido', 'Solicitar productos'),
-        _MenuItem(Icons.history, 'Mis Pedidos', 'Historial y estado'),
-        _MenuItem(Icons.receipt, 'Mis Facturas', 'Comprobantes de pago'),
-        _MenuItem(Icons.person, 'Mi Perfil', 'Datos personales'),
-      ],
+      roleType: 'socio',
     );
   }
 }
 
-// ── Widgets internos reutilizables ────────────────────────────────
-
+// ── Item del menú ────────────────────────────────────────────────
 class _MenuItem {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _MenuItem(this.icon, this.title, this.subtitle);
+  final Widget widget;
+  const _MenuItem(this.icon, this.title, this.subtitle, this.widget);
 }
 
-class _RoleScreen extends StatelessWidget {
+// ── Widget base de Dashboard con Barra Lateral (Drawer) e integración ──
+class _RoleScreen extends StatefulWidget {
   final String title;
   final Color roleColor;
   final IconData icon;
   final String greeting;
   final String description;
-  final List<_MenuItem> menuItems;
+  final String roleType;
 
   const _RoleScreen({
     required this.title,
@@ -99,46 +80,109 @@ class _RoleScreen extends StatelessWidget {
     required this.icon,
     required this.greeting,
     required this.description,
-    required this.menuItems,
+    required this.roleType,
   });
 
   @override
+  State<_RoleScreen> createState() => _RoleScreenState();
+}
+
+class _RoleScreenState extends State<_RoleScreen> {
+  int _currentViewIndex = 0; // 0 = Home / Overview, >0 = Módulo
+  List<_MenuItem> _menuItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initMenu();
+  }
+
+  void _initMenu() {
+    if (widget.roleType == 'admin') {
+      _menuItems = const [
+        _MenuItem(Icons.people, 'Personas y Usuarios', 'Gestionar directorio', PersonasUsuariosModule()),
+        _MenuItem(Icons.shield, 'Roles y Permisos', 'Configurar accesos', RolesPermisosModule()),
+        _MenuItem(Icons.inventory, 'Inventario', 'Productos acuícolas', InventarioModule()),
+        _MenuItem(Icons.local_shipping, 'Proveedores', 'Gestionar proveedores', ProveedoresModule()),
+        _MenuItem(Icons.shopping_cart, 'Pedidos', 'Control de pedidos', PedidosModule()),
+        _MenuItem(Icons.sell, 'Ventas', 'Registro de ventas', VentasModule()),
+        _MenuItem(Icons.bar_chart, 'Reportes', 'Estadísticas y métricas', ReportesModule()),
+      ];
+    } else if (widget.roleType == 'vendedor') {
+      _menuItems = const [
+        _MenuItem(Icons.inventory_2, 'Catálogo', 'Ver productos disponibles', InventarioModule()),
+        _MenuItem(Icons.add_shopping_cart, 'Nuevo Pedido', 'Crear pedido', PedidosModule()),
+        _MenuItem(Icons.sell, 'Registrar Venta', 'Nueva venta', VentasModule()),
+        _MenuItem(Icons.people, 'Clientes (Socios)', 'Ver directorio', PersonasUsuariosModule()),
+        _MenuItem(Icons.bar_chart, 'Reportes', 'Mis métricas', ReportesModule()),
+      ];
+    } else {
+      // Socio
+      _menuItems = const [
+        _MenuItem(Icons.storefront, 'Catálogo de Productos', 'Ver disponibilidad', InventarioModule()),
+        _MenuItem(Icons.add_shopping_cart, 'Hacer Pedido', 'Solicitar productos', PedidosModule()),
+      ];
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Determinar la vista activa
+    Widget activeBody;
+    String activeTitle;
+    
+    if (_currentViewIndex == 0) {
+      activeBody = _buildOverview(isDark);
+      activeTitle = 'Dashboard';
+    } else {
+      final item = _menuItems[_currentViewIndex - 1];
+      activeBody = item.widget;
+      activeTitle = item.title;
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFF020024),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF03045E),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFF0284C7),
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            const Icon(Icons.set_meal, color: Color(0xFF00B4D8)),
+            const Icon(Icons.set_meal, color: Color(0xFF38BDF8)),
             const SizedBox(width: 10),
             Text(
               'AmazonFish',
               style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
             ),
             const SizedBox(width: 8),
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: roleColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: roleColor.withOpacity(0.4)),
-                ),
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 12, color: roleColor, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: widget.roleColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: widget.roleColor.withOpacity(0.4)),
+              ),
+              child: Text(
+                widget.title,
+                style: GoogleFonts.inter(
+                  fontSize: 11, color: widget.roleColor, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
         actions: [
+          // Toggle de Tema
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white54),
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: Colors.white),
+            onPressed: () {
+              themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await AuthService().logout();
               if (context.mounted) {
@@ -151,141 +195,185 @@ class _RoleScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [const Color(0xFF03045E), roleColor.withOpacity(0.3)],
+      
+      // PC-005: Barra de navegación lateral (Drawer)
+      drawer: Drawer(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        child: Column(
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFF0284C7),
+              ),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: widget.roleColor,
+                child: Icon(widget.icon, color: Colors.white, size: 36),
+              ),
+              accountName: Text(
+                widget.greeting,
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              accountEmail: Text(
+                widget.description,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: roleColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: roleColor.withOpacity(0.3)),
-                  ),
-                  child: Icon(icon, color: roleColor, size: 32),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        greeting,
-                        style: GoogleFonts.inter(
-                          fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        description,
-                        style: GoogleFonts.inter(fontSize: 13, color: Colors.white54),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            
+            // Item de Inicio
+            ListTile(
+              leading: const Icon(Icons.dashboard_outlined),
+              title: Text('Inicio / Resumen', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              selected: _currentViewIndex == 0,
+              selectedColor: const Color(0xFF0284C7),
+              onTap: () {
+                setState(() => _currentViewIndex = 0);
+                Navigator.pop(context);
+              },
             ),
-          ),
-
-          // Grid de opciones
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.05,
-              ),
-              itemCount: menuItems.length,
-              itemBuilder: (_, i) => _MenuCard(
-                item: menuItems[i],
-                color: roleColor,
+            const Divider(),
+            
+            // Módulos
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: _menuItems.length,
+                itemBuilder: (_, i) {
+                  final item = _menuItems[i];
+                  return ListTile(
+                    leading: Icon(item.icon),
+                    title: Text(item.title, style: GoogleFonts.inter()),
+                    subtitle: Text(item.subtitle, style: const TextStyle(fontSize: 11)),
+                    selected: _currentViewIndex == i + 1,
+                    selectedColor: const Color(0xFF0284C7),
+                    onTap: () {
+                      setState(() => _currentViewIndex = i + 1);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+      
+      body: activeBody,
     );
   }
-}
 
-class _MenuCard extends StatelessWidget {
-  final _MenuItem item;
-  final Color color;
-  const _MenuCard({required this.item, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${item.title} – Próximamente',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              backgroundColor: const Color(0xFF03045E),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(12),
+  // Vista de Inicio / Resumen del Dashboard
+  Widget _buildOverview(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Banner de Bienvenida
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            gradient: LinearGradient(
+              colors: isDark 
+                  ? [const Color(0xFF1E293B), widget.roleColor.withOpacity(0.15)]
+                  : [const Color(0xFF0284C7), widget.roleColor.withOpacity(0.2)],
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: widget.roleColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: widget.roleColor.withOpacity(0.4)),
                 ),
-                child: Icon(item.icon, color: color, size: 22),
+                child: Icon(widget.icon, color: widget.roleColor, size: 32),
               ),
-              const SizedBox(height: 8),
-              Text(
-                item.title,
-                style: GoogleFonts.inter(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                item.subtitle,
-                style: GoogleFonts.inter(fontSize: 10, color: Colors.white38),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '¡Hola, ${widget.title}!',
+                      style: GoogleFonts.inter(
+                        fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                    Text(
+                      widget.description,
+                      style: GoogleFonts.inter(fontSize: 13, color: Colors.white70),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-      ),
+        
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Módulos del Sistema',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+        
+        // Grid de accesos directos rediseñado (más pequeños y amigables)
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.2,
+            ),
+            itemCount: _menuItems.length,
+            itemBuilder: (_, i) {
+              final item = _menuItems[i];
+              return Card(
+                color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => setState(() => _currentViewIndex = i + 1),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: widget.roleColor.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(item.icon, color: widget.roleColor, size: 20),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          item.title,
+                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          item.subtitle,
+                          style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
