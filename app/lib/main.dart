@@ -68,6 +68,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   final AuthService _authService = AuthService();
+  Widget? _activeScreen;
 
   @override
   void initState() {
@@ -81,7 +82,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     final token = await _authService.getToken();
     if (token == null) {
-      _navigateTo(const LoginScreen());
+      setState(() => _activeScreen = const LoginScreen());
       return;
     }
 
@@ -98,28 +99,27 @@ class _AuthWrapperState extends State<AuthWrapper> {
     } else {
       screen = const SocioScreen();
     }
-    _navigateTo(screen);
-  }
-
-  void _navigateTo(Widget screen) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    setState(() => _activeScreen = screen);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_activeScreen != null) {
+      return _activeScreen!;
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF020024),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.set_meal,
               size: 80,
-              color: Color(0xFF00B4D8),
+              color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
             ),
             const SizedBox(height: 24),
             Text(
@@ -127,7 +127,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               style: GoogleFonts.inter(
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 8),
@@ -135,12 +135,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
               'Sistema de Gestión Acuícola',
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: Colors.white54,
+                color: isDark ? Colors.white54 : Colors.black54,
               ),
             ),
             const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              color: Color(0xFF00B4D8),
+            CircularProgressIndicator(
+              color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
               strokeWidth: 2,
             ),
           ],
