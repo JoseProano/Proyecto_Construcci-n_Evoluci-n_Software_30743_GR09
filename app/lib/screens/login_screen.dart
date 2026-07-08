@@ -219,163 +219,168 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, themeMode, _) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Fondo degradado según tema
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [const Color(0xFF0F172A), const Color(0xFF0F172A), const Color(0xFF0284C7).withOpacity(0.4)]
-                    : [const Color(0xFFF8FAFC), const Color(0xFFF1F5F9), const Color(0xFF38BDF8).withOpacity(0.15)],
-              ),
-            ),
-          ),
-
-          // Botón de Toggle del Tema en esquina superior
-          Positioned(
-            top: 40,
-            right: 16,
-            child: IconButton(
-              icon: Icon(
-                isDark ? Icons.light_mode : Icons.dark_mode,
-                color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
-              ),
-              onPressed: () {
-                themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
-              },
-            ),
-          ),
-
-          // Contenido principal
-          Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo y título
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF0284C7).withOpacity(0.15),
-                          border: Border.all(
-                            color: const Color(0xFF0284C7).withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.set_meal,
-                          size: 52,
-                          color: Color(0xFF0284C7),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'AmazonFish',
-                        style: GoogleFonts.inter(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Sistema de Gestión Acuícola',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: isDark ? Colors.white54 : Colors.black54,
-                        ),
-                      ),
-                      const SizedBox(height: 36),
-
-                      // Tarjeta del Formulario
-                      Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            )
-                          ],
-                          border: Border.all(
-                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.04),
-                          ),
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: _buildFormContent(isDark),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-                      Text(
-                        'GR09 · NRC 30743 · ESPE',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isDark ? Colors.white24 : Colors.black26,
-                        ),
-                      ),
-                    ],
+        return Scaffold(
+          body: Stack(
+            children: [
+              // Fondo degradado según tema
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? [const Color(0xFF0F172A), const Color(0xFF0F172A), const Color(0xFF0284C7).withOpacity(0.4)]
+                        : [const Color(0xFFF8FAFC), const Color(0xFFF1F5F9), const Color(0xFF38BDF8).withOpacity(0.15)],
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // PC-001: Pantalla completa de carga
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.6),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+              // Botón de Toggle del Tema en esquina superior
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: Icon(
+                    isDark ? Icons.light_mode : Icons.dark_mode,
+                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(
-                        color: Color(0xFF0284C7),
-                        strokeWidth: 3,
+                  onPressed: () {
+                    themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+                  },
+                ),
+              ),
+
+              // Contenido principal
+              Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Logo y título
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF0284C7).withOpacity(0.15),
+                              border: Border.all(
+                                color: const Color(0xFF0284C7).withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.set_meal,
+                              size: 52,
+                              color: Color(0xFF0284C7),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'AmazonFish',
+                            style: GoogleFonts.inter(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Sistema de Gestión Acuícola',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: isDark ? Colors.white54 : Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 36),
+
+                          // Tarjeta del Formulario
+                          Container(
+                            padding: const EdgeInsets.all(28),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                )
+                              ],
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.04),
+                              ),
+                            ),
+                            child: Form(
+                              key: _formKey,
+                              child: _buildFormContent(isDark),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+                          Text(
+                            'GR09 · NRC 30743 · ESPE',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark ? Colors.white24 : Colors.black26,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 18),
-                      Text(
-                        _formType == FormType.login
-                            ? 'Iniciando sesión...'
-                            : _formType == FormType.register
-                                ? 'Creando cuenta...'
-                                : 'Restableciendo clave...',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
+
+              // PC-001: Pantalla completa de carga
+              if (_isLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.6),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                            color: Color(0xFF0284C7),
+                            strokeWidth: 3,
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            _formType == FormType.login
+                                ? 'Iniciando sesión...'
+                                : _formType == FormType.register
+                                    ? 'Creando cuenta...'
+                                    : 'Restableciendo clave...',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
