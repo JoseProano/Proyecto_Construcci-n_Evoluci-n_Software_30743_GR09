@@ -7,9 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Usuario, UsuarioRol, Rol
-from schemas import LoginRequest, TokenResponse, UsuarioConRolesResponse, UsuarioRolResponse, RolResponse
-from security import verify_password, create_access_token, get_current_user
+from models import Usuario, UsuarioRol, Rol, Persona
+from schemas import (
+    LoginRequest, TokenResponse, UsuarioConRolesResponse, UsuarioRolResponse, RolResponse,
+    PublicRegisterRequest, PasswordRecoveryRequest,
+)
+from security import verify_password, create_access_token, get_current_user, get_password_hash
 
 router = APIRouter()
 
@@ -81,3 +84,86 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 def get_me(current_user: dict = Depends(get_current_user)):
     """Retorna la información del usuario autenticado (payload del JWT)."""
     return current_user
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(request: PublicRegisterRequest, db: Session = Depends(get_db)):
+    """Registra una nueva persona y su usuario asociado con rol 'socio' por defecto."""
+    # Verificar si ya existe persona con la misma identificación o correo
+    existing_persona = db.query(Persona).filter(
+        (Persona.identificacion == request.identificacion) | (Persona.correo == request.correo)
+    ).first()
+    if existing_persona:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe una persona registrada con esta identificación o correo.",
+        )
+
+    # Verificar si el username está en uso
+    existing_user = db.query(Usuario).filter(Usuario.username == request.username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nombre de usuario ya está en uso.",
+        )
+
+    # Crear Persona
+    nueva_persona = Persona(
+        nombres=request.nombres,
+        apellidos=request.apellidos,
+        identificacion=request.identificacion,
+        correo=request.correo,
+        telefono=request.telefono,
+    )
+    db.add(nueva_persona)
+    db.flush()  # Para obtener id_persona
+
+    # Crear Usuario
+    nuevo_usuario = Usuario(
+        id_persona=nueva_persona.id_persona,
+        username=request.username,
+        password_hash=get_password_hash(request.password),
+    )
+    db.add(nuevo_usuario)
+    db.flush()  # Para obtener id_usuario
+
+    # Asignar Rol 'socio'
+    rol_socio = db.query(Rol).filter(Rol.nombre == "socio").first()
+    if not rol_socio:
+        rol_socio = Rol(nombre="socio", descripcion="Cliente/Socio del negocio acuícola")
+        db.add(rol_socio)
+        db.flush()
+
+    asignacion = UsuarioRol(
+        id_usuario=nuevo_usuario.id_usuario,
+        id_rol=rol_socio.id_rol,
+    )
+    db.add(asignacion)
+    db.commit()
+
+    return {"message": "Registro completado con éxito.", "username": request.username}
+
+
+@router.post("/recover-password")
+def recover_password(request: PasswordRecoveryRequest, db: Session = Depends(get_db)):
+    """Simula recuperación de contraseña verificando datos e ingresando la nueva clave."""
+    usuario = db.query(Usuario).filter(Usuario.username == request.username).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nombre de usuario no encontrado.",
+        )
+
+    persona = usuario.persona
+    if not persona or persona.identificacion != request.identificacion or persona.correo != request.correo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los datos proporcionados no coinciden con nuestros registros.",
+        )
+
+    # Cambiar contraseña
+    usuario.password_hash = get_password_hash(request.new_password)
+    db.commit()
+
+    return {"message": "Contraseña restablecida correctamente."}
+

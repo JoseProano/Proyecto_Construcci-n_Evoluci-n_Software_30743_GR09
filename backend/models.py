@@ -7,10 +7,26 @@ import uuid
 from datetime import datetime
 from sqlalchemy import (
     Column, String, Boolean, DateTime, ForeignKey,
-    Numeric, Text, Integer, UniqueConstraint,
+    Numeric, Text, Integer, UniqueConstraint, TypeDecorator,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from database import Base
+
+
+class GUID(TypeDecorator):
+    """
+    Platform-independent GUID type.
+    Uses PostgreSQL's UUID type, otherwise String(36).
+    """
+    impl = String
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(PG_UUID(as_uuid=False))
+        else:
+            return dialect.type_descriptor(String(36))
 
 
 def _uuid() -> str:
@@ -238,3 +254,56 @@ class EquipoAcuicola(ProductoAcuicola):
     marca = Column(String(50))
     modelo = Column(String(50))
     garantia_meses = Column(Integer)
+
+
+# ════════════════════════════════════════════════════════════════
+# MÓDULO DOMINIO: PEDIDOS Y VENTAS (Flujo Comercial)
+# ════════════════════════════════════════════════════════════════
+
+class Pedido(Base):
+    """
+    Entidad Pedido – almacena el estado (borrador, pagado, cancelado),
+    subtotal, descuento y total de la proforma.
+    """
+    __tablename__ = "pedidos"
+
+    id_pedido = Column(GUID, primary_key=True, default=_uuid)
+    id_usuario = Column(GUID, ForeignKey("usuarios.id_usuario"), nullable=False)
+    fecha_pedido = Column(DateTime, default=datetime.utcnow)
+    estado = Column(String(20), nullable=False, default="borrador")  # borrador | pagado | cancelado
+    subtotal = Column(Numeric(10, 2), nullable=False, default=0.0)
+    descuento = Column(Numeric(10, 2), nullable=False, default=0.0)
+    total = Column(Numeric(10, 2), nullable=False, default=0.0)
+
+    usuario = relationship("Usuario")
+    detalles = relationship("DetallePedido", back_populates="pedido", cascade="all, delete-orphan")
+    venta = relationship("Venta", uselist=False, back_populates="pedido")
+
+
+class DetallePedido(Base):
+    """Detalle de los productos incluidos en un pedido."""
+    __tablename__ = "detalle_pedido"
+
+    id_detalle = Column(GUID, primary_key=True, default=_uuid)
+    id_pedido = Column(GUID, ForeignKey("pedidos.id_pedido"), nullable=False)
+    id_producto = Column(GUID, ForeignKey("productos_acuicola.id_producto"), nullable=False)
+    cantidad = Column(Numeric(10, 2), nullable=False)
+    precio_unitario = Column(Numeric(10, 2), nullable=False)
+    subtotal = Column(Numeric(10, 2), nullable=False)
+
+    pedido = relationship("Pedido", back_populates="detalles")
+    producto = relationship("ProductoAcuicola")
+
+
+class Venta(Base):
+    """Registro de venta tras el pago del pedido."""
+    __tablename__ = "ventas"
+
+    id_venta = Column(GUID, primary_key=True, default=_uuid)
+    id_pedido = Column(GUID, ForeignKey("pedidos.id_pedido"), nullable=False, unique=True)
+    metodo_pago = Column(String(20), nullable=False)  # efectivo | transferencia
+    fecha_venta = Column(DateTime, default=datetime.utcnow)
+    monto_pagado = Column(Numeric(10, 2), nullable=False)
+
+    pedido = relationship("Pedido", back_populates="venta")
+

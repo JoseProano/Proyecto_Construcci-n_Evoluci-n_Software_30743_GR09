@@ -24,7 +24,7 @@ def run(cmd: str) -> None:
     print(f"  $ {cmd}")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=BASE_DIR)
     if result.returncode != 0:
-        print(f"  ❌ Error: {result.stderr}")
+        print(f"  ❌ Error: {result.stderr.strip() or result.stdout.strip()}")
         sys.exit(1)
     if result.stdout.strip():
         print(f"  {result.stdout.strip()}")

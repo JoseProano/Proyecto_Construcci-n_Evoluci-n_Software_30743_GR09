@@ -6,6 +6,9 @@ import 'screens/admin_screen.dart';
 import 'screens/vendedor_screen.dart';
 import 'screens/socio_screen.dart';
 
+// A global theme notifier for ThemeMode toggling
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
+
 void main() {
   runApp(const AmazonFishApp());
 }
@@ -15,20 +18,42 @@ class AmazonFishApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AmazonFish',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0096C7),
-          brightness: Brightness.dark,
-        ),
-        textTheme: GoogleFonts.interTextTheme(
-          ThemeData.dark().textTheme,
-        ),
-        useMaterial3: true,
-      ),
-      home: const AuthWrapper(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'AmazonFish',
+          debugShowCheckedModeBanner: false,
+          themeMode: currentMode,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0096C7),
+              brightness: Brightness.light,
+            ),
+            textTheme: GoogleFonts.interTextTheme(
+              ThemeData.light().textTheme.copyWith(
+                bodyLarge: const TextStyle(color: Colors.black87),
+                bodyMedium: const TextStyle(color: Colors.black54),
+              ),
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0096C7),
+              brightness: Brightness.dark,
+            ),
+            textTheme: GoogleFonts.interTextTheme(
+              ThemeData.dark().textTheme.copyWith(
+                bodyLarge: const TextStyle(color: Colors.white),
+                bodyMedium: const TextStyle(color: Colors.white70),
+              ),
+            ),
+          ),
+          home: const AuthWrapper(),
+        );
+      },
     );
   }
 }

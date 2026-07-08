@@ -73,4 +73,62 @@ class AuthService {
     await prefs.remove(_rolesKey);
     await prefs.remove(_usernameKey);
   }
+
+  /// Registro público: crea Persona + Usuario.
+  Future<void> register({
+    required String nombres,
+    required String apellidos,
+    required String identificacion,
+    required String correo,
+    required String telefono,
+    required String username,
+    required String password,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/v1/auth/register');
+    final resp = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'nombres': nombres,
+        'apellidos': apellidos,
+        'identificacion': identificacion,
+        'correo': correo,
+        'telefono': telefono.isEmpty ? null : telefono,
+        'username': username,
+        'password': password,
+      }),
+    );
+
+    if (resp.statusCode != 201) {
+      final decoded = jsonDecode(resp.body);
+      final error = decoded['detail'];
+      throw Exception(error ?? 'Error al registrarse');
+    }
+  }
+
+  /// Recuperación de contraseña.
+  Future<void> recoverPassword({
+    required String username,
+    required String identificacion,
+    required String correo,
+    required String newPassword,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/v1/auth/recover-password');
+    final resp = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'username': username,
+        'identificacion': identificacion,
+        'correo': correo,
+        'new_password': newPassword,
+      }),
+    );
+
+    if (resp.statusCode != 200) {
+      final decoded = jsonDecode(resp.body);
+      final error = decoded['detail'];
+      throw Exception(error ?? 'Error al recuperar contraseña');
+    }
+  }
 }

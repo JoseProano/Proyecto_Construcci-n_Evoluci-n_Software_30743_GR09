@@ -15,7 +15,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "amazonfish-gr09-secret-key-change-in-produ
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=8)
 security = HTTPBearer()
 
 

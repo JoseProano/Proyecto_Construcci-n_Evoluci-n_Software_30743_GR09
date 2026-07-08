@@ -237,3 +237,95 @@ class ProductoResponse(ProductoBase):
     fecha_registro: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ════════════════════════════════════════════════════════════════
+# PEDIDOS Y VENTAS (Flujo Comercial)
+# ════════════════════════════════════════════════════════════════
+
+class DetallePedidoCreate(BaseModel):
+    id_producto: UUID_STR
+    cantidad: float
+
+
+class PedidoCreate(BaseModel):
+    id_usuario: Optional[UUID_STR] = None
+    descuento: float = 0.0
+    detalles: List[DetallePedidoCreate]
+
+
+class VentaCreate(BaseModel):
+    metodo_pago: str  # efectivo | transferencia
+    monto_pagado: float
+
+
+class DetallePedidoResponse(BaseModel):
+    id_detalle: UUID_STR
+    id_pedido: UUID_STR
+    id_producto: UUID_STR
+    cantidad: float
+    precio_unitario: float
+    subtotal: float
+    producto: Optional[ProductoResponse] = None
+
+    model_config = {"from_attributes": True}
+
+
+class PedidoResponse(BaseModel):
+    id_pedido: UUID_STR
+    id_usuario: UUID_STR
+    fecha_pedido: datetime
+    estado: str
+    subtotal: float
+    descuento: float
+    total: float
+    detalles: List[DetallePedidoResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+class VentaResponse(BaseModel):
+    id_venta: UUID_STR
+    id_pedido: UUID_STR
+    metodo_pago: str
+    fecha_venta: datetime
+    monto_pagado: float
+    pedido: Optional[PedidoResponse] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ════════════════════════════════════════════════════════════════
+# REGISTRO PÚBLICO Y RECUPERACIÓN DE CLAVE
+# ════════════════════════════════════════════════════════════════
+
+class PublicRegisterRequest(BaseModel):
+    nombres: str
+    apellidos: str
+    identificacion: str
+    correo: str
+    telefono: Optional[str] = None
+    username: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        return v
+
+
+class PasswordRecoveryRequest(BaseModel):
+    username: str
+    identificacion: str
+    correo: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La nueva contraseña debe tener al menos 8 caracteres")
+        return v
+
