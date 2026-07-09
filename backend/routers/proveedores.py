@@ -8,7 +8,7 @@ from typing import List
 
 from database import get_db
 from models import Proveedor, ProveedorPersonaNatural, ProveedorPersonaJuridica
-from schemas import ProveedorNaturalCreate, ProveedorJuridicoCreate, ProveedorResponse
+from schemas import ProveedorNaturalCreate, ProveedorJuridicoCreate, ProveedorResponse, ProveedorUpdate
 from security import get_current_user
 
 router = APIRouter()
@@ -93,3 +93,37 @@ def eliminar_proveedor(
         raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
     p.estado = False
     db.commit()
+
+
+@router.put("/{id_proveedor}", response_model=ProveedorResponse)
+def actualizar_proveedor(
+    id_proveedor: str,
+    datos: ProveedorUpdate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    p = db.query(Proveedor).filter(Proveedor.id_proveedor == id_proveedor).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+    
+    # Actualizar campos comunes
+    for campo in ["razon_social", "correo", "telefono", "direccion", "estado"]:
+        valor = getattr(datos, campo, None)
+        if valor is not None:
+            setattr(p, campo, valor)
+
+    # Actualizar campos específicos si es subclase
+    if p.tipo_proveedor == "natural" and isinstance(p, ProveedorPersonaNatural):
+        for campo in ["nombres", "apellidos", "cedula"]:
+            valor = getattr(datos, campo, None)
+            if valor is not None:
+                setattr(p, campo, valor)
+    elif p.tipo_proveedor == "juridico" and isinstance(p, ProveedorPersonaJuridica):
+        for campo in ["ruc", "nombre_comercial", "representante_legal"]:
+            valor = getattr(datos, campo, None)
+            if valor is not None:
+                setattr(p, campo, valor)
+
+    db.commit()
+    db.refresh(p)
+    return p
