@@ -306,12 +306,14 @@ class RolesPermisosModule extends StatefulWidget {
 
 class _RolesPermisosModuleState extends State<RolesPermisosModule> {
   List<dynamic> _usuarios = [];
+  List<dynamic> _rolesDisponibles = [];
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _cargarUsuarios();
+    _cargarRoles();
   }
 
   Future<void> _cargarUsuarios() async {
@@ -329,11 +331,39 @@ class _RolesPermisosModuleState extends State<RolesPermisosModule> {
     }
   }
 
+  Future<void> _cargarRoles() async {
+    try {
+      final headers = await _getHeaders();
+      final res = await http.get(Uri.parse('$_baseUrl/api/v1/roles/'), headers: headers);
+      if (res.statusCode == 200) {
+        _rolesDisponibles = jsonDecode(res.body);
+      }
+    } catch (_) {}
+  }
+
+  String? _findRolId(String nombre) {
+    try {
+      final r = _rolesDisponibles.firstWhere((element) => element['nombre'] == nombre);
+      return r['id_rol'];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _findUsuarioRolId(List<dynamic> userRoles, String nombreRol) {
+    try {
+      final ur = userRoles.firstWhere((r) => r['rol']?['nombre'] == nombreRol && r['estado'] == true);
+      return ur['id_usuario_rol'];
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _asignarRolDialog(dynamic user) {
     final List<dynamic> userRoles = user['roles'] ?? [];
-    bool isAdmin = userRoles.any((r) => r['rol']?['nombre'] == 'administrador');
-    bool isSeller = userRoles.any((r) => r['rol']?['nombre'] == 'vendedor');
-    bool isPartner = userRoles.any((r) => r['rol']?['nombre'] == 'socio');
+    bool isAdmin = userRoles.any((r) => r['rol']?['nombre'] == 'administrador' && r['estado'] == true);
+    bool isSeller = userRoles.any((r) => r['rol']?['nombre'] == 'vendedor' && r['estado'] == true);
+    bool isPartner = userRoles.any((r) => r['rol']?['nombre'] == 'socio' && r['estado'] == true);
 
     showDialog(
       context: context,
@@ -375,22 +405,54 @@ class _RolesPermisosModuleState extends State<RolesPermisosModule> {
                 try {
                   final headers = await _getHeaders();
                   
-                  // Llamar por cada rol seleccionado
-                  final rolesParaAsignar = [];
-                  if (isAdmin) rolesParaAsignar.add('rol-admin-001');
-                  if (isSeller) rolesParaAsignar.add('rol-vende-001');
-                  if (isPartner) rolesParaAsignar.add('rol-socio-001');
+                  final adminRolId = _findRolId('administrador');
+                  final sellerRolId = _findRolId('vendedor');
+                  final partnerRolId = _findRolId('socio');
 
-                  // Limpiar y reasignar
-                  for (var rId in rolesParaAsignar) {
+                  bool wasAdmin = userRoles.any((r) => r['rol']?['nombre'] == 'administrador' && r['estado'] == true);
+                  bool wasSeller = userRoles.any((r) => r['rol']?['nombre'] == 'vendedor' && r['estado'] == true);
+                  bool wasPartner = userRoles.any((r) => r['rol']?['nombre'] == 'socio' && r['estado'] == true);
+
+                  // 1. Administrador
+                  if (isAdmin && !wasAdmin && adminRolId != null) {
                     await http.post(
                       Uri.parse('$_baseUrl/api/v1/roles/asignar'),
                       headers: headers,
-                      body: jsonEncode({
-                        'id_usuario': user['id_usuario'],
-                        'id_rol': rId,
-                      }),
+                      body: jsonEncode({'id_usuario': user['id_usuario'], 'id_rol': adminRolId}),
                     );
+                  } else if (!isAdmin && wasAdmin) {
+                    final urId = _findUsuarioRolId(userRoles, 'administrador');
+                    if (urId != null) {
+                      await http.delete(Uri.parse('$_baseUrl/api/v1/roles/remover/$urId'), headers: headers);
+                    }
+                  }
+
+                  // 2. Vendedor
+                  if (isSeller && !wasSeller && sellerRolId != null) {
+                    await http.post(
+                      Uri.parse('$_baseUrl/api/v1/roles/asignar'),
+                      headers: headers,
+                      body: jsonEncode({'id_usuario': user['id_usuario'], 'id_rol': sellerRolId}),
+                    );
+                  } else if (!isSeller && wasSeller) {
+                    final urId = _findUsuarioRolId(userRoles, 'vendedor');
+                    if (urId != null) {
+                      await http.delete(Uri.parse('$_baseUrl/api/v1/roles/remover/$urId'), headers: headers);
+                    }
+                  }
+
+                  // 3. Socio
+                  if (isPartner && !wasPartner && partnerRolId != null) {
+                    await http.post(
+                      Uri.parse('$_baseUrl/api/v1/roles/asignar'),
+                      headers: headers,
+                      body: jsonEncode({'id_usuario': user['id_usuario'], 'id_rol': partnerRolId}),
+                    );
+                  } else if (!isPartner && wasPartner) {
+                    final urId = _findUsuarioRolId(userRoles, 'socio');
+                    if (urId != null) {
+                      await http.delete(Uri.parse('$_baseUrl/api/v1/roles/remover/$urId'), headers: headers);
+                    }
                   }
 
                   AppDialog.show(context, title: 'Éxito', message: 'Roles actualizados correctamente', type: DialogType.success);
@@ -456,11 +518,22 @@ class InventarioModule extends StatefulWidget {
 class _InventarioModuleState extends State<InventarioModule> {
   List<dynamic> _productos = [];
   bool _isLoading = false;
+  bool _canManage = false;
 
   @override
   void initState() {
     super.initState();
     _cargarProductos();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final roles = await AuthService().getRoles();
+    if (mounted) {
+      setState(() {
+        _canManage = roles.contains('administrador');
+      });
+    }
   }
 
   Future<void> _cargarProductos() async {
@@ -510,7 +583,7 @@ class _InventarioModuleState extends State<InventarioModule> {
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return AlertDialog(
-          title: Text('Añadir Producto (Factory Method)', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          title: Text('Añadir Producto', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           content: StatefulBuilder(
             builder: (context, setDialogState) {
@@ -601,7 +674,7 @@ class _InventarioModuleState extends State<InventarioModule> {
                   };
 
                   final res = await http.post(
-                    Uri.parse('$_baseUrl/api/v1/productos/'),
+                    Uri.parse('$_baseUrl/api/v1/productos/$selectedTipo'),
                     headers: headers,
                     body: jsonEncode(body),
                   );
@@ -612,6 +685,93 @@ class _InventarioModuleState extends State<InventarioModule> {
                   } else {
                     final err = jsonDecode(res.body)['detail'];
                     AppDialog.show(context, title: 'Error', message: err ?? 'No se pudo crear', type: DialogType.error);
+                  }
+                } catch (e) {
+                  // ignore
+                } finally {
+                  setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editarProductoDialog(dynamic p) {
+    final nameCtrl = TextEditingController(text: p['nombre']);
+    final descCtrl = TextEditingController(text: p['descripcion'] ?? '');
+    final priceCtrl = TextEditingController(text: p['precio_unitario'].toString());
+    final stockCtrl = TextEditingController(text: p['stock_actual'].toString());
+    final minStockCtrl = TextEditingController(text: p['stock_minimo'].toString());
+    final unitCtrl = TextEditingController(text: p['unidad_medida']);
+    bool active = p['estado'] ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          title: Text('Editar Producto', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          content: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
+                    TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descripción')),
+                    TextField(controller: priceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Precio Unitario')),
+                    TextField(controller: stockCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Stock Actual')),
+                    TextField(controller: minStockCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Stock Mínimo')),
+                    TextField(controller: unitCtrl, decoration: const InputDecoration(labelText: 'Unidad de Medida')),
+                    CheckboxListTile(
+                      title: const Text('Activo'),
+                      value: active,
+                      onChanged: (val) => setDialogState(() => active = val ?? true),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty || stockCtrl.text.isEmpty) {
+                  AppDialog.show(context, title: 'Campos vacíos', message: 'Por favor complete los campos obligatorios', type: DialogType.error);
+                  return;
+                }
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  final headers = await _getHeaders();
+                  final body = {
+                    'nombre': nameCtrl.text.trim(),
+                    'descripcion': descCtrl.text.trim(),
+                    'precio_unitario': double.parse(priceCtrl.text),
+                    'stock_actual': double.parse(stockCtrl.text),
+                    'stock_minimo': double.parse(minStockCtrl.text.isEmpty ? '0' : minStockCtrl.text),
+                    'unidad_medida': unitCtrl.text.trim(),
+                    'estado': active,
+                  };
+
+                  final res = await http.put(
+                    Uri.parse('$_baseUrl/api/v1/productos/${p['id_producto']}'),
+                    headers: headers,
+                    body: jsonEncode(body),
+                  );
+
+                  if (res.statusCode == 200) {
+                    AppDialog.show(context, title: 'Éxito', message: 'Producto actualizado correctamente', type: DialogType.success);
+                    _cargarProductos();
+                  } else {
+                    final err = jsonDecode(res.body)['detail'];
+                    AppDialog.show(context, title: 'Error', message: err ?? 'No se pudo actualizar', type: DialogType.error);
                   }
                 } catch (e) {
                   // ignore
@@ -674,16 +834,30 @@ class _InventarioModuleState extends State<InventarioModule> {
                           ),
                       ],
                     ),
-                    trailing: Text('\$${p['precio_unitario']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('\$${p['precio_unitario']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        if (_canManage) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Color(0xFF0284C7)),
+                            onPressed: () => _editarProductoDialog(p),
+                          ),
+                        ]
+                      ],
+                    ),
                   ),
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF0284C7),
-        onPressed: _crearProductoDialog,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _canManage
+          ? FloatingActionButton(
+              backgroundColor: const Color(0xFF0284C7),
+              onPressed: _crearProductoDialog,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 }
@@ -701,11 +875,22 @@ class ProveedoresModule extends StatefulWidget {
 class _ProveedoresModuleState extends State<ProveedoresModule> {
   List<dynamic> _proveedores = [];
   bool _isLoading = false;
+  bool _canManage = false;
 
   @override
   void initState() {
     super.initState();
     _cargarProveedores();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final roles = await AuthService().getRoles();
+    if (mounted) {
+      setState(() {
+        _canManage = roles.contains('administrador');
+      });
+    }
   }
 
   Future<void> _cargarProveedores() async {
@@ -844,6 +1029,118 @@ class _ProveedoresModuleState extends State<ProveedoresModule> {
     );
   }
 
+  void _editarProveedorDialog(dynamic prov) {
+    final razonSocialCtrl = TextEditingController(text: prov['razon_social']);
+    final correoCtrl = TextEditingController(text: prov['correo'] ?? '');
+    final telefonoCtrl = TextEditingController(text: prov['telefono'] ?? '');
+    final direccionCtrl = TextEditingController(text: prov['direccion'] ?? '');
+    bool active = prov['estado'] ?? true;
+    final tipo = prov['tipo_proveedor'];
+
+    // Natural
+    final nombresCtrl = TextEditingController(text: prov['nombres'] ?? '');
+    final apellidosCtrl = TextEditingController(text: prov['apellidos'] ?? '');
+    final cedulaCtrl = TextEditingController(text: prov['cedula'] ?? '');
+
+    // Juridico
+    final rucCtrl = TextEditingController(text: prov['ruc'] ?? '');
+    final nombreComercialCtrl = TextEditingController(text: prov['nombre_comercial'] ?? '');
+    final representanteLegalCtrl = TextEditingController(text: prov['representante_legal'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          title: Text('Editar Proveedor', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          content: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: razonSocialCtrl, decoration: const InputDecoration(labelText: 'Razón Social / Nombre Comercial')),
+                    TextField(controller: correoCtrl, decoration: const InputDecoration(labelText: 'Correo')),
+                    TextField(controller: telefonoCtrl, decoration: const InputDecoration(labelText: 'Teléfono')),
+                    TextField(controller: direccionCtrl, decoration: const InputDecoration(labelText: 'Dirección')),
+                    CheckboxListTile(
+                      title: const Text('Activo'),
+                      value: active,
+                      onChanged: (val) => setDialogState(() => active = val ?? true),
+                    ),
+
+                    if (tipo == 'natural') ...[
+                      TextField(controller: nombresCtrl, decoration: const InputDecoration(labelText: 'Nombres')),
+                      TextField(controller: apellidosCtrl, decoration: const InputDecoration(labelText: 'Apellidos')),
+                      TextField(controller: cedulaCtrl, decoration: const InputDecoration(labelText: 'Cédula')),
+                    ] else ...[
+                      TextField(controller: rucCtrl, decoration: const InputDecoration(labelText: 'RUC')),
+                      TextField(controller: nombreComercialCtrl, decoration: const InputDecoration(labelText: 'Nombre Comercial')),
+                      TextField(controller: representanteLegalCtrl, decoration: const InputDecoration(labelText: 'Representante Legal')),
+                    ]
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                if (razonSocialCtrl.text.isEmpty) {
+                  AppDialog.show(context, title: 'Campos vacíos', message: 'La Razón Social es requerida.', type: DialogType.error);
+                  return;
+                }
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  final headers = await _getHeaders();
+                  final body = {
+                    'razon_social': razonSocialCtrl.text.trim(),
+                    'correo': correoCtrl.text.trim().isEmpty ? null : correoCtrl.text.trim(),
+                    'telefono': telefonoCtrl.text.trim().isEmpty ? null : telefonoCtrl.text.trim(),
+                    'direccion': direccionCtrl.text.trim().isEmpty ? null : direccionCtrl.text.trim(),
+                    'estado': active,
+                    'tipo_proveedor': tipo,
+                    if (tipo == 'natural') ...{
+                      'nombres': nombresCtrl.text.trim(),
+                      'apellidos': apellidosCtrl.text.trim(),
+                      'cedula': cedulaCtrl.text.trim().isEmpty ? null : cedulaCtrl.text.trim(),
+                    } else ...{
+                      'ruc': rucCtrl.text.trim().isEmpty ? null : rucCtrl.text.trim(),
+                      'nombre_comercial': nombreComercialCtrl.text.trim().isEmpty ? null : nombreComercialCtrl.text.trim(),
+                      'representante_legal': representanteLegalCtrl.text.trim().isEmpty ? null : representanteLegalCtrl.text.trim(),
+                    }
+                  };
+
+                  final res = await http.put(
+                    Uri.parse('$_baseUrl/api/v1/proveedores/${prov['id_proveedor']}'),
+                    headers: headers,
+                    body: jsonEncode(body),
+                  );
+
+                  if (res.statusCode == 200) {
+                    AppDialog.show(context, title: 'Éxito', message: 'Proveedor actualizado correctamente', type: DialogType.success);
+                    _cargarProveedores();
+                  } else {
+                    final err = jsonDecode(res.body)['detail'];
+                    AppDialog.show(context, title: 'Error', message: err ?? 'No se pudo actualizar', type: DialogType.error);
+                  }
+                } catch (e) {
+                  // ignore
+                } finally {
+                  setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -858,8 +1155,8 @@ class _ProveedoresModuleState extends State<ProveedoresModule> {
                 final prov = _proveedores[i];
                 final tipo = prov['tipo_proveedor'] == 'natural' ? 'Persona Natural' : 'Persona Jurídica';
                 final doc = prov['tipo_proveedor'] == 'natural'
-                    ? 'Cédula: ${prov['persona_natural']?['cedula'] ?? "N/A"}'
-                    : 'RUC: ${prov['persona_juridica']?['ruc'] ?? "N/A"}';
+                    ? 'Cédula: ${prov['cedula'] ?? "N/A"}'
+                    : 'RUC: ${prov['ruc'] ?? "N/A"}';
 
                 return Card(
                   color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
@@ -869,16 +1166,30 @@ class _ProveedoresModuleState extends State<ProveedoresModule> {
                     leading: const CircleAvatar(backgroundColor: Color(0xFFF59E0B), child: Icon(Icons.local_shipping_outlined, color: Colors.white)),
                     title: Text('${prov['razon_social']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Tipo: $tipo\n$doc\nCorreo: ${prov['correo'] ?? "Sin correo"}'),
-                    trailing: Icon(prov['estado'] ? Icons.check_circle : Icons.cancel, color: prov['estado'] ? Colors.green : Colors.red),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_canManage) ...[
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Color(0xFF0284C7)),
+                            onPressed: () => _editarProveedorDialog(prov),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Icon(prov['estado'] ? Icons.check_circle : Icons.cancel, color: prov['estado'] ? Colors.green : Colors.red),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF0284C7),
-        onPressed: _crearProveedorDialog,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _canManage
+          ? FloatingActionButton(
+              backgroundColor: const Color(0xFF0284C7),
+              onPressed: _crearProveedorDialog,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 }

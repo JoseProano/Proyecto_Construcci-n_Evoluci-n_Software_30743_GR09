@@ -177,7 +177,31 @@ class ProveedorResponse(ProveedorBase):
     tipo_proveedor: str
     fecha_registro: datetime
 
+    # Campos polimórficos de Persona Natural
+    nombres: Optional[str] = None
+    apellidos: Optional[str] = None
+    cedula: Optional[str] = None
+
+    # Campos polimórficos de Persona Jurídica
+    ruc: Optional[str] = None
+    nombre_comercial: Optional[str] = None
+    representante_legal: Optional[str] = None
+
     model_config = {"from_attributes": True}
+
+
+class ProveedorUpdate(BaseModel):
+    razon_social: Optional[str] = None
+    correo: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    estado: Optional[bool] = None
+    nombres: Optional[str] = None
+    apellidos: Optional[str] = None
+    cedula: Optional[str] = None
+    ruc: Optional[str] = None
+    nombre_comercial: Optional[str] = None
+    representante_legal: Optional[str] = None
 
 
 # ════════════════════════════════════════════════════════════════
