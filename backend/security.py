@@ -7,6 +7,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import JWTError, jwt
+import bcrypt
+
+# Monkeypatch bcrypt for passlib compatibility with python 3.12 (fixes slow python fallback)
+if not hasattr(bcrypt, "__about__"):
+    class DummyAbout:
+        __version__ = getattr(bcrypt, "__version__", "4.0.0")
+    bcrypt.__about__ = DummyAbout()
+
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -15,7 +23,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "amazonfish-gr09-secret-key-change-in-produ
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=8)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=4)
 security = HTTPBearer()
 
 
