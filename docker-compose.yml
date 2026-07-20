@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amazonfish-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=amazonfish-gr09-secret-key-change-in-production
+      - ENVIRONMENT=development
+    restart: always
